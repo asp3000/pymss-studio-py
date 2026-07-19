@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import inspect
 import shutil
 import subprocess
@@ -48,8 +49,12 @@ def _make_separator(**desired: Any) -> Any:
     """
     engine = desired.pop("engine", "pymss")
     if engine == "msst":
+        # 确保 engine 模块可导入（worker 在 python/ 下运行，engine 在项目根）
+        _script_dir = os.path.dirname(os.path.abspath(__file__))
+        _project_root = os.path.dirname(_script_dir)
+        if _project_root not in sys.path:
+            sys.path.insert(0, _project_root)
         from engine import MsstSeparatorAdapter
-        # For MsstSeparatorAdapter, pass everything through (it handles **kwargs)
         return MsstSeparatorAdapter(**desired)
 
     from pymss import MSSeparator  # type: ignore
