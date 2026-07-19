@@ -29,6 +29,7 @@ DEFAULTS: dict[str, Any] = {
     "m4a_bit_rate": "512k",
     "m4a_codec": "aac",
     "developer_mode": False,
+    "engine_map": {},  # {架构名: 引擎名} 用户自定义引擎映射
 }
 
 

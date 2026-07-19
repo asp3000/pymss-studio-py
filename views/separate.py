@@ -1059,17 +1059,22 @@ class SeparateView(QWidget):
         from engine import engines_for_architecture, default_engine_for, engine_label
         arch = (info.get("architecture") or info.get("modelType") or "").strip().lower()
         engines = engines_for_architecture(arch)
+        # 读取用户配置的引擎映射
+        saved_map = dict(self.app.config["engine_map"] or {})
+        preferred = saved_map.get(arch)
+
         # 清除旧的 radio
         for rb in self.engine_group.buttons():
             self.engine_group.removeButton(rb)
             rb.deleteLater()
-        # 清除布局中的旧 widget
         while self.engine_radio_layout.count():
             item = self.engine_radio_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
-        # 创建新 radio
-        default = default_engine_for(arch)
+
+        # 确定默认：用户配置 > 架构默认
+        default = preferred if preferred and preferred in engines else default_engine_for(arch)
+
         for e in engines:
             rb = QRadioButton(engine_label(e))
             rb.setStyleSheet("font-size:12px;")

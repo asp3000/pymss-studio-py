@@ -33,7 +33,7 @@ ARCHITECTURE_ENGINES = {
 }
 
 ENGINE_LABELS = {
-    "pymss": "Pymss (默认)",
+    "pymss": "Pymss",
     "msst": "MSST",
 }
 

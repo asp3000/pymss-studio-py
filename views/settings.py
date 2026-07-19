@@ -349,53 +349,121 @@ class SettingsView(QWidget):
         v.addWidget(title)
 
         desc = QLabel(
-            "Pymss Studio 支持多引擎切换。"
+            "为每种架构选择默认使用的引擎。"
             "当某个模型在 Pymss 引擎下输出异常时，"
-            "可切换到 MSST 引擎获得正确结果。"
+            "可切换 MSST 引擎获得正确结果。"
         )
         desc.setWordWrap(True)
         desc.setStyleSheet("color:#64748b;")
         v.addWidget(desc)
         v.addSpacing(10)
 
-        # 引擎对照表
-        from engine import ARCHITECTURE_ENGINES, ENGINE_LABELS, DEFAULT_ENGINE
+        from engine import ARCHITECTURE_ENGINES, ENGINE_LABELS
 
-        table = QGroupBox("架构 → 引擎对照表")
+        saved_map = dict(self.app.config["engine_map"] or {})
+
+        table = QGroupBox("架构 → 引擎映射（点击单选框修改）")
         grid = QGridLayout(table)
         grid.setSpacing(6)
-        headers = ["架构", "可用引擎", "默认引擎", "可否切换"]
+        headers = ["架构", "引擎选择", "当前值"]
         for col, h in enumerate(headers):
             lbl = QLabel(f"<b>{h}</b>")
             lbl.setStyleSheet("color:#1e293b;")
             grid.addWidget(lbl, 0, col)
 
+        self.engine_groups: dict[str, QButtonGroup] = {}
+        self.engine_cur_labels: dict[str, QLabel] = {}
+
         row = 1
         for arch, engines in sorted(ARCHITECTURE_ENGINES.items()):
-            # 架构名
             grid.addWidget(QLabel(arch), row, 0)
-            # 可用引擎
-            labels = [ENGINE_LABELS.get(e, e) for e in engines]
-            grid.addWidget(QLabel(" / ".join(labels)), row, 1)
-            # 默认引擎
-            default = engines[0]
-            grid.addWidget(QLabel(ENGINE_LABELS.get(default, default)), row, 2)
-            # 可否切换
-            switchable = QLabel("✅ 可" if len(engines) > 1 else "❌ 不可")
-            switchable.setStyleSheet(
-                "color: #059669;" if len(engines) > 1 else "color: #dc2626;"
+
+            rb_widget = QWidget()
+            rb_layout = QHBoxLayout(rb_widget)
+            rb_layout.setContentsMargins(0, 0, 0, 0)
+            rb_layout.setSpacing(8)
+            group = QButtonGroup(rb_widget)
+            self.engine_groups[arch] = group
+
+            current = saved_map.get(arch, engines[0])
+
+            for e in engines:
+                rb = QRadioButton(ENGINE_LABELS.get(e, e))
+                rb.setStyleSheet("font-size:12px;")
+                if len(engines) == 1:
+                    rb.setEnabled(False)
+                    rb.setToolTip("此架构仅支持此引擎")
+                else:
+                    rb.setToolTip(f"选择 {ENGINE_LABELS.get(e, e)}")
+                group.addButton(rb)
+                rb_layout.addWidget(rb)
+                if e == current:
+                    rb.setChecked(True)
+
+            group.idPressed.connect(lambda _a=arch: self._save_engine_map(_a))
+            grid.addWidget(rb_widget, row, 1)
+
+            lock = " 🔒" if len(engines) == 1 else ""
+            cur_lbl = QLabel(f"{ENGINE_LABELS.get(current, current)}{lock}")
+            cur_lbl.setStyleSheet(
+                "color:#059669; font-weight:bold;" if not lock
+                else "color:#94a3b8; font-weight:bold;"
             )
-            grid.addWidget(switchable, row, 3)
+            self.engine_cur_labels[arch] = cur_lbl
+            grid.addWidget(cur_lbl, row, 2)
             row += 1
 
         v.addWidget(table)
 
-        note = QLabel(
-            "💡 在「分离」页选择模型后，高级设置中的引擎选项会自动匹配当前架构。\n"
-            "如架构仅支持单一引擎，引擎选择将锁定不可切换。"
+        bar = QHBoxLayout()
+        save_btn = QPushButton("保存配置")
+        save_btn.setStyleSheet(
+            "QPushButton{background:#2563eb;color:#fff;padding:6px 24px;"
+            "border-radius:4px;font-size:13px;font-weight:bold;}"
+            "QPushButton:hover{background:#1d4ed8;}"
         )
-        note.setWordWrap(True)
-        note.setStyleSheet("color:#64748b; font-size:12px; margin-top:8px;")
-        v.addWidget(note)
+        save_btn.clicked.connect(self._save_engine_map_all)
+        bar.addWidget(save_btn)
+        bar.addStretch(1)
+        v.addLayout(bar)
         v.addStretch(1)
         return w
+
+    def _save_engine_map(self, arch: str) -> None:
+        """单个架构引擎选择改变时自动保存。"""
+        engine_map = self._collect_engine_map()
+        self.app.config.data["engine_map"] = engine_map
+        self.app.config.save()
+        self._refresh_engine_cur_labels()
+
+    def _save_engine_map_all(self) -> None:
+        """保存全部。"""
+        engine_map = self._collect_engine_map()
+        self.app.config.data["engine_map"] = engine_map
+        self.app.config.save()
+        self._refresh_engine_cur_labels()
+
+    def _collect_engine_map(self) -> dict:
+        """收集所有单选框状态 → {arch: engine_name}"""
+        from engine import ENGINE_LABELS
+        result = {}
+        for arch, group in self.engine_groups.items():
+            checked = group.checkedButton()
+            if checked is None:
+                continue
+            label = checked.text()
+            for name, lbl in ENGINE_LABELS.items():
+                if lbl == label:
+                    result[arch] = name
+                    break
+        return result
+
+    def _refresh_engine_cur_labels(self) -> None:
+        """刷新当前值列显示。"""
+        from engine import ARCHITECTURE_ENGINES, ENGINE_LABELS
+        engine_map = dict(self.app.config["engine_map"] or {})
+        for arch, cur_lbl in self.engine_cur_labels.items():
+            engines = ARCHITECTURE_ENGINES.get(arch, ["pymss"])
+            current = engine_map.get(arch, engines[0])
+            lock = " 🔒" if len(engines) == 1 else ""
+            cur_lbl.setText(f"{ENGINE_LABELS.get(current, current)}{lock}")
