@@ -60,6 +60,22 @@ def engine_label(name: str) -> str:
     return ENGINE_LABELS.get(name, name)
 
 
+class _MsstProgressProxy(dict):
+    """将 MSST 的 ``callback["progress"] = x`` 转换为 Pymss worker 的
+    ``callback(done, total, message)`` 格式。"""
+    def __init__(self, total_samples: int, worker_callback):
+        super().__init__()
+        self._total = total_samples
+        self._worker_callback = worker_callback
+        self["progress"] = 0.0
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        if key == "progress" and self._total > 0:
+            done = int(value / 0.99 * self._total) if value < 0.99 else self._total
+            self._worker_callback(done, self._total, "Separating")
+
+
 class MsstSeparatorAdapter:
     """适配 MsstEngine 到 MSSeparator 接口的包装器。
 
@@ -131,9 +147,12 @@ class MsstSeparatorAdapter:
                 mix = mix.T.astype(np.float32)  # (2, L)
 
                 # 分离
+                total_samples = mix.shape[1]
+                cb = _MsstProgressProxy(total_samples, self.progress_callback) if self.progress_callback else None
                 results = self._engine.separate(
                     self._config, self._model, mix, self.device,
                     model_type=self.model_type,
+                    callback=cb,
                 )
 
                 # 保存每个音轨
