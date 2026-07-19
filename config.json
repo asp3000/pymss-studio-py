@@ -1,0 +1,18 @@
+{
+  "python_exe": "venv/Scripts/python.exe",
+  "worker_dir": "python",
+  "pymss_path": "",
+  "data_root": "data",
+  "default_device": "auto",
+  "default_output_format": "wav",
+  "default_output_dir": "",
+  "model_dir": "data/models",
+  "download_source": "modelscope",
+  "max_concurrent_separations": 1,
+  "wav_bit_depth": "PCM_16",
+  "flac_bit_depth": "PCM_16",
+  "mp3_bit_rate": "256k",
+  "m4a_bit_rate": "256k",
+  "m4a_codec": "aac",
+  "developer_mode": false
+}

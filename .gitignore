@@ -1,0 +1,38 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# --- Virtual envs ---
+venv/
+.venv/
+
+# --- IDE / OS ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- Project runtime ---
+*.log
+results/
+
+# --- Model files (large, ~GB each) ---
+data/models/**/*.ckpt
+data/models/**/*.pt
+data/models/**/*.pth
+data/models/**/*.th
+data/models/**/*.onnx
+data/models/**/*.part
+
+# --- Bundled binaries (large) ---
+bin/aria2c.exe
+bin/ffmpeg.exe
+
+# --- User override configs ---
+model_prefs.json

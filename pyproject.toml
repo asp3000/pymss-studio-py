@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pymss-studio-py"
+version = "0.1.0"
+description = "Python desktop GUI for pymss-studio — audio source separation"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = [
+    "PySide6>=6.7",
+]
+authors = [
+    {name = "asp3000"},
+]
+
+[project.urls]
+Homepage = "https://github.com/asp3000/pymss-studio-py"
+Source = "https://github.com/asp3000/pymss-studio-py"
+
+# 注意：由于项目目录名 pymss-studio-py 不是合法的 Python 包标识符，
+# pip install -e . 不会像常规包那样工作。
+# 请使用 python run.py 或 start.bat 启动。

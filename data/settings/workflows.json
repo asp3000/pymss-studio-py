@@ -1,0 +1,866 @@
+{
+  "selectedWorkflowId": "",
+  "workflows": [
+    {
+      "createdAt": 1784292329082,
+      "definition": {
+        "defaults": {
+          "device": "auto",
+          "inference_params": {
+            "normalize": true
+          },
+          "model_dir": null,
+          "output_format": "wav"
+        },
+        "steps": [
+          {
+            "id": "step_1",
+            "input": "input",
+            "model": "bs_roformer_male_female_by_aufr33_sdr_7.2889.ckpt",
+            "save": {
+              "female": "female",
+              "male": "male"
+            },
+            "stems": [
+              "male",
+              "female"
+            ]
+          }
+        ],
+        "version": 1
+      },
+      "description": "",
+      "id": "workflow_mroxl0fu_l3k2dr",
+      "name": "男女声分离",
+      "updatedAt": 1784292450329
+    },
+    {
+      "createdAt": 1784292447147,
+      "definition": {
+        "defaults": {
+          "device": "auto",
+          "inference_params": {
+            "normalize": true
+          },
+          "model_dir": null,
+          "output_format": "wav"
+        },
+        "steps": [
+          {
+            "id": "step_1",
+            "input": "input",
+            "model": "model_mel_band_roformer_ep_0_sdr_7.9319_fixed.ckpt",
+            "save": {
+              "singer_1": "singer_1",
+              "singer_2": "singer_2"
+            },
+            "stems": [
+              "singer_1",
+              "singer_2"
+            ]
+          }
+        ],
+        "version": 1
+      },
+      "description": "",
+      "id": "workflow_mroxnjjf_k4dwat",
+      "name": "对唱分离",
+      "updatedAt": 1784292447147
+    },
+    {
+      "createdAt": 1784291160349,
+      "definition": {
+        "defaults": {
+          "device": "auto",
+          "inference_params": {
+            "normalize": true
+          },
+          "model_dir": null,
+          "output_format": "wav"
+        },
+        "steps": [
+          {
+            "id": "step_1",
+            "input": "input",
+            "model": "big_beta6x.ckpt",
+            "save": {
+              "other": "other",
+              "vocals": "vocals"
+            },
+            "stems": [
+              "vocals",
+              "other"
+            ]
+          }
+        ],
+        "version": 1
+      },
+      "description": "",
+      "id": "workflow_mrowvyn1_cxmwc0",
+      "name": "big6人声",
+      "updatedAt": 1784291160349
+    },
+    {
+      "createdAt": 1784291134055,
+      "definition": {
+        "defaults": {
+          "device": "auto",
+          "inference_params": {
+            "normalize": true
+          },
+          "model_dir": null,
+          "output_format": "wav"
+        },
+        "steps": [
+          {
+            "id": "step_1",
+            "input": "input",
+            "model": "big_beta7.ckpt",
+            "save": {
+              "other": "other",
+              "vocals": "vocals"
+            },
+            "stems": [
+              "vocals",
+              "other"
+            ]
+          }
+        ],
+        "version": 1
+      },
+      "description": "",
+      "id": "workflow_mrowvecn_9505ud",
+      "name": "big7人声",
+      "updatedAt": 1784291134055
+    },
+    {
+      "createdAt": 1784291019088,
+      "definition": {
+        "version": 1,
+        "defaults": {
+          "device": "auto",
+          "output_format": "wav",
+          "model_dir": null,
+          "inference_params": {
+            "normalize": true
+          }
+        },
+        "steps": [
+          {
+            "id": "step_1",
+            "model": "Kim_MelBandRoformer.ckpt",
+            "input": "input",
+            "stems": [
+              "vocals",
+              "other"
+            ],
+            "save": {
+              "vocals": "vocals",
+              "other": "other"
+            }
+          }
+        ]
+      },
+      "description": "声音干净",
+      "id": "workflow_mrowsxn4_w8j5fh",
+      "name": "KIM快速人声背景",
+      "updatedAt": 1784350413670
+    },
+    {
+      "createdAt": 1784275951629,
+      "definition": {
+        "defaults": {
+          "device": "auto",
+          "inference_params": {
+            "normalize": true
+          },
+          "model_dir": null,
+          "output_format": "wav"
+        },
+        "steps": [
+          {
+            "id": "step_1",
+            "input": "input",
+            "model": "mel_band_roformer_vocals_becruily.ckpt",
+            "save": {
+              "other": "other",
+              "vocals": "vocals"
+            },
+            "stems": [
+              "vocals",
+              "other"
+            ]
+          }
+        ],
+        "version": 1
+      },
+      "description": "",
+      "id": "workflow_mrontzil_p88dpl",
+      "name": "最佳人声",
+      "updatedAt": 1784276940517
+    },
+    {
+      "createdAt": 1784276005996,
+      "definition": {
+        "defaults": {
+          "device": "auto",
+          "inference_params": {
+            "normalize": true
+          },
+          "model_dir": null,
+          "output_format": "wav"
+        },
+        "steps": [
+          {
+            "id": "step_1",
+            "input": "input",
+            "model": "becruily_deux.ckpt",
+            "save": {
+              "Instrumental": "Instrumental",
+              "Vocals": "Vocals"
+            },
+            "stems": [
+              "Vocals",
+              "Instrumental"
+            ]
+          }
+        ],
+        "version": 1
+      },
+      "description": "",
+      "id": "workflow_mronv5gs_y2ujo0",
+      "name": "最佳背景与人声",
+      "updatedAt": 1784276936101
+    },
+    {
+      "createdAt": 1784008782080,
+      "definition": {
+        "defaults": {
+          "device": "auto",
+          "inference_params": {
+            "normalize": true
+          },
+          "model_dir": null,
+          "output_format": "wav"
+        },
+        "steps": [
+          {
+            "id": "step_1",
+            "input": "input",
+            "model": "BS-Roformer-SW.ckpt",
+            "save": {
+              "bass": "bass",
+              "drums": "drums",
+              "guitar": "guitar",
+              "other": "other",
+              "piano": "piano",
+              "vocals": "vocals"
+            },
+            "stems": [
+              "bass",
+              "drums",
+              "other",
+              "vocals",
+              "guitar",
+              "piano"
+            ]
+          }
+        ],
+        "version": 1
+      },
+      "description": "",
+      "id": "workflow_mrk8rm68_4s0ecc",
+      "name": "6轨Roformer667MB",
+      "updatedAt": 1784276929598
+    },
+    {
+      "createdAt": 1784276740417,
+      "definition": {
+        "defaults": {
+          "device": "auto",
+          "inference_params": {
+            "normalize": true
+          },
+          "model_dir": null,
+          "output_format": "wav"
+        },
+        "steps": [
+          {
+            "id": "step_1",
+            "input": "input",
+            "model": "model_bs_roformer_ep_17_sdr_9.6568.ckpt",
+            "save": {
+              "bass": "bass",
+              "drums": "drums",
+              "other": "other",
+              "vocals": "vocals"
+            },
+            "stems": [
+              "drums",
+              "bass",
+              "other",
+              "vocals"
+            ]
+          }
+        ],
+        "version": 1
+      },
+      "description": "",
+      "id": "workflow_mrooaw5d_ubwd54",
+      "name": "4 轨高效503MB",
+      "updatedAt": 1784276865181
+    },
+    {
+      "createdAt": 1784276779216,
+      "definition": {
+        "defaults": {
+          "device": "auto",
+          "inference_params": {
+            "normalize": true
+          },
+          "model_dir": null,
+          "output_format": "wav"
+        },
+        "steps": [
+          {
+            "id": "step_1",
+            "input": "input",
+            "model": "HTDemucs4_6stems.th",
+            "save": {
+              "bass": "bass",
+              "drums": "drums",
+              "guitar": "guitar",
+              "other": "other",
+              "piano": "piano",
+              "vocals": "vocals"
+            },
+            "stems": [
+              "drums",
+              "bass",
+              "other",
+              "vocals",
+              "guitar",
+              "piano"
+            ]
+          }
+        ],
+        "version": 1
+      },
+      "description": "",
+      "id": "workflow_mroobq34_51i58t",
+      "name": "6轨Demucs轻量",
+      "updatedAt": 1784276861535
+    },
+    {
+      "createdAt": 1784276858015,
+      "definition": {
+        "defaults": {
+          "device": "auto",
+          "inference_params": {
+            "normalize": true
+          },
+          "model_dir": null,
+          "output_format": "wav"
+        },
+        "steps": [
+          {
+            "id": "step_1",
+            "input": "input",
+            "model": "HTDemucs4.th",
+            "save": {
+              "bass": "bass",
+              "drums": "drums",
+              "other": "other",
+              "vocals": "vocals"
+            },
+            "stems": [
+              "drums",
+              "bass",
+              "other",
+              "vocals"
+            ]
+          }
+        ],
+        "version": 1
+      },
+      "description": "",
+      "id": "workflow_mroodevz_hs4ncm",
+      "name": "4轨Demucs快速",
+      "updatedAt": 1784276858015
+    },
+    {
+      "id": "27c06b2e27bc46ab",
+      "name": "53轨道",
+      "description": "",
+      "definition": {
+        "version": 1,
+        "defaults": {
+          "device": "auto",
+          "output_format": "wav",
+          "model_dir": null,
+          "inference_params": {
+            "normalize": true
+          }
+        },
+        "steps": [
+          {
+            "id": "step_9cd1b21993c94063bc016c593321885e",
+            "model": "bs_mega_53stem_accordion_mvsep.ckpt",
+            "input": "input",
+            "stems": [
+              "accordion"
+            ],
+            "save": {
+              "accordion": "accordion"
+            }
+          },
+          {
+            "id": "step_54822d63b8894c27b1dff9e7626b44b7",
+            "model": "bs_mega_53stem_acoustic-guitar_mvsep.ckpt",
+            "input": "input",
+            "stems": [
+              "acoustic-guitar"
+            ],
+            "save": {
+              "acoustic-guitar": "acoustic-guitar"
+            }
+          },
+          {
+            "id": "step_6fb48758689048139d9649294b572ece",
+            "model": "bs_mega_53stem_banjo_mvsep.ckpt",
+            "input": "input",
+            "stems": [
+              "banjo"
+            ],
+            "save": {
+              "banjo": "banjo"
+            }
+          },
+          {
+            "id": "step_221d18d9065f4ca6bc5e41a2b28dd2f5",
+            "model": "bs_mega_53stem_bass_mvsep.ckpt",
+            "input": "input",
+            "stems": [
+              "bass"
+            ],
+            "save": {
+              "bass": "bass"
+            }
+          },
+          {
+            "id": "step_2181842269964be8b2f32e23cfcdf892",
+            "model": "bs_mega_53stem_bassoon_mvsep.ckpt",
+            "input": "input",
+            "stems": [
+              "bassoon"
+            ],
+            "save": {
+              "bassoon": "bassoon"
+            }
+          }
+        ]
+      },
+      "runParams": {
+        "device": "auto",
+        "outputFormat": "wav",
+        "useTta": false
+      },
+      "batch": {
+        "folder": "",
+        "recursive": false,
+        "sort": true
+      },
+      "createdAt": 1784374378246,
+      "updatedAt": 1784386758673
+    },
+    {
+      "id": "d9237f86dad147a8",
+      "name": "多重处理",
+      "description": "",
+      "definition": {
+        "version": 1,
+        "defaults": {
+          "device": "auto",
+          "output_format": "wav",
+          "model_dir": null,
+          "inference_params": {
+            "normalize": true
+          }
+        },
+        "steps": [
+          {
+            "id": "step_a4e2101cc2df4601a193ceb06a5f5176",
+            "model": "becruily_deux.ckpt",
+            "input": "input",
+            "stems": [
+              "Vocals",
+              "Instrumental"
+            ],
+            "save": {
+              "Vocals": "Vocals",
+              "Instrumental": "Instrumental"
+            }
+          },
+          {
+            "id": "step_51faddb51c074d8e965ae4878afc088d",
+            "model": "big_beta5e.ckpt",
+            "input": "input",
+            "stems": [
+              "vocals",
+              "other"
+            ],
+            "save": {
+              "vocals": "vocals",
+              "other": "other"
+            }
+          },
+          {
+            "id": "step_f9ef09df6bd24065ab96e54fce4f2cac",
+            "model": "BS-Roformer-SW.ckpt",
+            "input": "input",
+            "stems": [
+              "bass",
+              "drums",
+              "other",
+              "vocals",
+              "guitar",
+              "piano"
+            ],
+            "save": {
+              "bass": "bass",
+              "drums": "drums",
+              "other": "other",
+              "vocals": "vocals",
+              "guitar": "guitar",
+              "piano": "piano"
+            }
+          },
+          {
+            "id": "step_0ec4370220534ddca9753e5ea5a0268a",
+            "model": "essid_mel_vocal_v1.ckpt",
+            "input": "input",
+            "stems": [
+              "vocals",
+              "other"
+            ],
+            "save": {
+              "vocals": "vocals",
+              "other": "other"
+            }
+          },
+          {
+            "id": "step_7da295e21a064e1bb3026b43d1038480",
+            "model": "bs_roformer_4stems_ft.ckpt",
+            "input": "input",
+            "stems": [
+              "drums",
+              "bass",
+              "other",
+              "vocals"
+            ],
+            "save": {
+              "drums": "drums",
+              "bass": "bass",
+              "other": "other",
+              "vocals": "vocals"
+            }
+          },
+          {
+            "id": "step_485f51ee96954dfa85528e0f145f11e1",
+            "model": "bs_roformer_inst_hyperacev2.ckpt",
+            "input": "input",
+            "stems": [
+              "vocals",
+              "instrument"
+            ],
+            "save": {
+              "vocals": "vocals",
+              "instrument": "instrument"
+            }
+          },
+          {
+            "id": "step_66bb1a0a9845476b9420a08236559365",
+            "model": "essid_mel_vocal_v2.ckpt",
+            "input": "input",
+            "stems": [
+              "vocals",
+              "other"
+            ],
+            "save": {
+              "vocals": "vocals",
+              "other": "other"
+            }
+          },
+          {
+            "id": "step_b8a2046b6b244c039c71774a5401dca6",
+            "model": "HTDemucs4.th",
+            "input": "input",
+            "stems": [
+              "drums",
+              "bass",
+              "other",
+              "vocals"
+            ],
+            "save": {
+              "drums": "drums",
+              "bass": "bass",
+              "other": "other",
+              "vocals": "vocals"
+            }
+          },
+          {
+            "id": "step_f7b2628715af41f98ef8004d0bde6733",
+            "model": "HTDemucs4_6stems.th",
+            "input": "input",
+            "stems": [
+              "drums",
+              "bass",
+              "other",
+              "vocals",
+              "guitar",
+              "piano"
+            ],
+            "save": {
+              "drums": "drums",
+              "bass": "bass",
+              "other": "other",
+              "vocals": "vocals",
+              "guitar": "guitar",
+              "piano": "piano"
+            }
+          },
+          {
+            "id": "step_c1026acd12ab473ab75528ba6a054054",
+            "model": "inst_gaboxFlowersV10.ckpt",
+            "input": "input",
+            "stems": [
+              "Instrumental",
+              "Vocals"
+            ],
+            "save": {
+              "Instrumental": "Instrumental",
+              "Vocals": "Vocals"
+            }
+          },
+          {
+            "id": "step_2e4a175d13eb443ca1d966e347fe9df5",
+            "model": "inst_v1e_plus.ckpt",
+            "input": "input",
+            "stems": [
+              "other",
+              "vocals"
+            ],
+            "save": {
+              "other": "other",
+              "vocals": "vocals"
+            }
+          },
+          {
+            "id": "step_a93c1e73d594454cbb5735bb1c556df3",
+            "model": "INSTV10.ckpt",
+            "input": "input",
+            "stems": [
+              "other",
+              "vocals"
+            ],
+            "save": {
+              "other": "other",
+              "vocals": "vocals"
+            }
+          },
+          {
+            "id": "step_927c8e56643b4e3999c814e26732e24a",
+            "model": "Kim_MelBandRoformer.ckpt",
+            "input": "input",
+            "stems": [
+              "vocals",
+              "other"
+            ],
+            "save": {
+              "vocals": "vocals",
+              "other": "other"
+            }
+          },
+          {
+            "id": "step_18cb6db865db44dea5170804376ea830",
+            "model": "mel_band_roformer_vocal_fullness_aname.ckpt",
+            "input": "input",
+            "stems": [
+              "vocals",
+              "other"
+            ],
+            "save": {
+              "vocals": "vocals",
+              "other": "other"
+            }
+          },
+          {
+            "id": "step_f22e780b39fe4cf29ea274093cafaa53",
+            "model": "mel_band_roformer_vocals_becruily.ckpt",
+            "input": "input",
+            "stems": [
+              "vocals",
+              "other"
+            ],
+            "save": {
+              "vocals": "vocals",
+              "other": "other"
+            }
+          },
+          {
+            "id": "step_1b69ca58b67f42ccb0c095d2fcdeb144",
+            "model": "melband_roformer_inst_v2.ckpt",
+            "input": "input",
+            "stems": [
+              "other",
+              "vocals"
+            ],
+            "save": {
+              "other": "other",
+              "vocals": "vocals"
+            }
+          },
+          {
+            "id": "step_65d7381872514a41acb337433ecd029a",
+            "model": "melband_roformer_instvox_duality_v2.ckpt",
+            "input": "input",
+            "stems": [
+              "Vocals",
+              "Instrumental"
+            ],
+            "save": {
+              "Vocals": "Vocals",
+              "Instrumental": "Instrumental"
+            }
+          },
+          {
+            "id": "step_204a05f5dcef4f80a79a43285125f108",
+            "model": "model_bandit_plus_dnr_sdr_11.47.ckpt",
+            "input": "input",
+            "stems": [
+              "Speech",
+              "Music",
+              "Effects"
+            ],
+            "save": {
+              "Speech": "Speech",
+              "Music": "Music",
+              "Effects": "Effects"
+            }
+          },
+          {
+            "id": "step_91fe00bdb3d249bca4b13c8ace8b302a",
+            "model": "model_bs_roformer_ep_17_sdr_9.6568.ckpt",
+            "input": "input",
+            "stems": [
+              "drums",
+              "bass",
+              "other",
+              "vocals"
+            ],
+            "save": {
+              "drums": "drums",
+              "bass": "bass",
+              "other": "other",
+              "vocals": "vocals"
+            }
+          },
+          {
+            "id": "step_e8aac6967b504d6e87f3a082620e76e3",
+            "model": "model_chorus_bs_roformer_ep_146_sdr_23.8613.ckpt",
+            "input": "input",
+            "stems": [
+              "male",
+              "female"
+            ],
+            "save": {
+              "male": "male",
+              "female": "female"
+            }
+          },
+          {
+            "id": "step_b6cffe904e474facbb1c61c9d6a847f2",
+            "model": "model_chorus_bs_roformer_ep_267_sdr_24.1275.ckpt",
+            "input": "input",
+            "stems": [
+              "male",
+              "female"
+            ],
+            "save": {
+              "male": "male",
+              "female": "female"
+            }
+          },
+          {
+            "id": "step_16e0cb64c8454c6f8f6418562c54e8e5",
+            "model": "model_mel_band_roformer_ep_0_sdr_7.9319_fixed.ckpt",
+            "input": "input",
+            "stems": [
+              "singer_1",
+              "singer_2"
+            ],
+            "save": {
+              "singer_1": "singer_1",
+              "singer_2": "singer_2"
+            }
+          },
+          {
+            "id": "step_3a42a52f464e4285852f745cd78847d7",
+            "model": "model_scnet_ep_36_sdr_5.4596.ckpt",
+            "input": "input",
+            "stems": [
+              "alto",
+              "bass",
+              "soprano",
+              "tenor"
+            ],
+            "save": {
+              "alto": "alto",
+              "bass": "bass",
+              "soprano": "soprano",
+              "tenor": "tenor"
+            }
+          },
+          {
+            "id": "step_b3a3cd7d8a394720beb105a862f7e438",
+            "model": "speech_bs_roformer_AliceN_sdr_20.4440.ckpt",
+            "input": "input",
+            "stems": [
+              "vocals",
+              "other"
+            ],
+            "save": {
+              "vocals": "vocals",
+              "other": "other"
+            }
+          },
+          {
+            "id": "step_c79aff83e95746ae827a35e050ea6196",
+            "model": "speech_mel_roformer_AliceN_sdr_16.5716.ckpt",
+            "input": "input",
+            "stems": [
+              "vocals",
+              "other"
+            ],
+            "save": {
+              "vocals": "vocals",
+              "other": "other"
+            }
+          }
+        ]
+      },
+      "runParams": {
+        "device": "auto",
+        "outputFormat": "wav",
+        "useTta": false
+      },
+      "batch": {
+        "folder": "",
+        "recursive": false,
+        "sort": true
+      },
+      "createdAt": 1784382076854,
+      "updatedAt": 1784386766464
+    }
+  ]
+}

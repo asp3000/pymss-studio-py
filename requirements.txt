@@ -1,0 +1,21 @@
+# ============================================================
+# Pymss Studio Python GUI — core dependencies
+# ============================================================
+# GUI framework
+PySide6>=6.7
+
+# ============================================================
+# Worker dependencies (python/) — these must also be available
+# in the Python interpreter that runs worker.py (see README
+# for the recommended one-venv setup).
+#
+# Equivalent to python/requirements.txt — listed here so a
+# single `pip install -r requirements.txt` covers everything.
+# ============================================================
+av>=14
+librosa>=0.10.2
+numpy>=1.26
+pyyaml>=6.0.1
+torch>=2.7.1
+tqdm>=4.60
+soundfile>=0.12

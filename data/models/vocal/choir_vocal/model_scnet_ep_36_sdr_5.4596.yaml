@@ -1,0 +1,107 @@
+audio:
+  chunk_size: 131072 # 44100 * 11
+  num_channels: 2
+  sample_rate: 44100
+  min_mean_abs: 0.000
+
+model:
+  sources:
+    - alto
+    - bass
+    - soprano
+    - tenor
+  audio_channels: 2
+  dims:
+    - 4
+    - 32
+    - 64
+    - 128
+  nfft: 4096
+  hop_size: 1024
+  win_size: 4096
+  normalized: True
+  band_SR:
+    - 0.175
+    - 0.392
+    - 0.433
+  band_stride:
+    - 1
+    - 4
+    - 16
+  band_kernel:
+    - 3
+    - 4
+    - 16
+  conv_depths:
+    - 3
+    - 2
+    - 1
+  compress: 4
+  conv_kernel: 3
+  num_dplayer: 6
+  expand: 1
+
+training:
+  batch_size: 9
+  gradient_accumulation_steps: 1
+  grad_clip: 0
+  instruments:
+    - alto
+    - bass
+    - soprano
+    - tenor
+  lr: 5.0e-4
+  patience: 6
+  reduce_factor: 0.95
+  target_instrument: null
+  num_epochs: 1000
+  num_steps: 1000
+  q: 0.95
+  coarse_loss_clip: true
+  ema_momentum: 0.999
+  optimizer: adamw8bit
+  other_fix: false # it's needed for checking on multisong dataset if other is actually instrumental
+  use_amp: true # enable or disable usage of mixed precision (float16) - usually it must be true
+
+loss_multistft:
+  fft_sizes:
+  - 1024
+  - 2048
+  - 4096
+  hop_sizes:
+  - 512
+  - 1024
+  - 2048
+  win_lengths:
+  - 1024
+  - 2048
+  - 4096
+  window: "hann_window"
+  scale: "mel"
+  n_bins: 128
+  sample_rate: 44100
+  perceptual_weighting: true
+  w_sc: 1.0
+  w_log_mag: 1.0
+  w_lin_mag: 0.0
+  w_phs: 0.0
+  mag_distance: "L1"
+
+augmentations:
+  enable: false # enable or disable all augmentations (to fast disable if needed)
+  loudness: true # randomly change loudness of each stem on the range (loudness_min; loudness_max)
+  loudness_min: 0.5
+  loudness_max: 1.5
+  mixup: false # mix several stems of same type with some probability (only works for dataset types: 1, 2, 3)
+  mixup_probs:
+    !!python/tuple # 2 additional stems of the same type (1st with prob 0.2, 2nd with prob 0.02)
+    - 0.2
+    - 0.02
+  mixup_loudness_min: 0.5
+  mixup_loudness_max: 1.5
+
+inference:
+  batch_size: 16
+  dim_t: 256
+  overlap_size: 0
+  normalize: false

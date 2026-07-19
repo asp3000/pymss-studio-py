@@ -1,0 +1,35 @@
+{
+  "input": "models/smoke/apollo/Apollo_LQ_MP3_restoration.ckpt",
+  "output": "models/smoke/apollo/Apollo_LQ_MP3_restoration.pymss_state_dict.pt",
+  "top_level_type": "dict",
+  "top_level_keys": [
+    "model_name",
+    "state_dict",
+    "model_args",
+    "infos"
+  ],
+  "state_dict_tensors": 654,
+  "state_dict_parameters": 16577708,
+  "first_keys": [
+    "BN.0.0.weight",
+    "BN.0.1.weight",
+    "BN.0.1.bias",
+    "BN.1.0.weight",
+    "BN.1.1.weight",
+    "BN.1.1.bias",
+    "BN.2.0.weight",
+    "BN.2.1.weight",
+    "BN.2.1.bias",
+    "BN.3.0.weight",
+    "BN.3.1.weight",
+    "BN.3.1.bias",
+    "BN.4.0.weight",
+    "BN.4.1.weight",
+    "BN.4.1.bias",
+    "BN.5.0.weight",
+    "BN.5.1.weight",
+    "BN.5.1.bias",
+    "BN.6.0.weight",
+    "BN.6.1.weight"
+  ]
+}

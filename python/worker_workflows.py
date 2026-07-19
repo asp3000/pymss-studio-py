@@ -1,0 +1,593 @@
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import traceback
+from pathlib import Path
+from typing import Any
+
+from worker_graph_workflows import is_graph_workflow_definition, run_graph_workflow_task
+from worker_infer import (
+    _normalize_output_layout, _normalize_output_dir, _resolve_separator_device,
+    collect_outputs,
+)
+from worker_protocol import emit, emit_error
+
+
+def _package_root() -> Path:
+    """Absolute package root (<pkg>), i.e. the parent of this ``python`` dir.
+
+    Worker subprocesses are spawned with CWD set to the ``python`` directory,
+    so a relative output path is resolved against the package root to keep
+    results in ``<pkg>/results`` rather than ``<pkg>/python/results``.
+    """
+    return Path(__file__).resolve().parent.parent
+
+
+def _normalize_output_dir(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        text = os.environ.get("PYMSS_STUDIO_DEFAULT_OUTPUT_DIR") or "results"
+    output_path = Path(text)
+    if not output_path.is_absolute():
+        return str((_package_root() / output_path).resolve())
+    return str(output_path)
+
+
+def _write_workflow_definition(payload: dict[str, Any], task_id: str) -> Path:
+    workflow_path = payload.get("workflowPath")
+    if isinstance(workflow_path, str) and workflow_path.strip():
+        path = Path(workflow_path).expanduser()
+        if path.is_file():
+            return path
+
+    definition = payload.get("workflow")
+    if not isinstance(definition, dict):
+        return Path("")
+
+    temp_dir = Path(tempfile.gettempdir()) / "pymss-studio-workflows"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    path = temp_dir / f"{task_id}.json"
+    path.write_text(json.dumps(definition, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
+
+
+def _candidate_commands(workflow_path: Path, input_path: str, output_dir: str, payload: dict[str, Any], output_layout: str) -> list[list[str]]:
+    output_format = str(payload.get("outputFormat") or "wav")
+    audio_params = payload.get("audioParams") if isinstance(payload.get("audioParams"), dict) else {}
+    run_args = [
+        "workflow",
+        "run",
+        "-c",
+        str(workflow_path),
+        "-i",
+        input_path,
+        "-o",
+        output_dir,
+        "--output-layout",
+        output_layout,
+        "--download",
+        "--source",
+        str(payload.get("source") or "modelscope"),
+        "--format",
+        output_format,
+        "--wav-bit-depth",
+        str(audio_params.get("wav_bit_depth") or "FLOAT"),
+        "--flac-bit-depth",
+        str(audio_params.get("flac_bit_depth") or "PCM_16"),
+        "--mp3-bit-rate",
+        str(audio_params.get("mp3_bit_rate") or "320k"),
+        "--m4a-bit-rate",
+        str(audio_params.get("m4a_bit_rate") or "512k"),
+        "--m4a-codec",
+        str(audio_params.get("m4a_codec") or "aac"),
+    ]
+    model_dir = str(payload.get("modelDir") or "").strip()
+    if model_dir:
+        run_args.extend(["--model-dir", model_dir])
+    endpoint = str(payload.get("endpoint") or "").strip()
+    if endpoint:
+        run_args.extend(["--endpoint", endpoint])
+    requested_device = str(payload.get("device") or "auto").strip().lower() or "auto"
+    device, device_ids, _resolved_device_label = _resolve_separator_device(
+        requested_device, payload.get("deviceIds")
+    )
+    if requested_device == "cuda":
+        # pymss's explicit `cuda` path currently loses the selected index,
+        # while `auto` plus device_ids resolves to cuda:<id> correctly.
+        run_args.extend(["--device", device])
+        for device_id in device_ids:
+            run_args.extend(["--device-id", str(device_id)])
+    elif device and device != "auto":
+        run_args.extend(["--device", device])
+    if payload.get("useTta"):
+        run_args.append("--tta")
+    if payload.get("debug"):
+        run_args.append("--debug")
+    return [
+        [sys.executable, "-m", "pymss.cli", *run_args],
+    ]
+
+
+def _run_workflow_cli(command: list[str], task_id: str) -> tuple[int, str]:
+    emit("task_log", {"level": "info", "message": " ".join(command)}, task_id=task_id)
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    lines: list[str] = []
+    assert process.stdout is not None
+    for line in process.stdout:
+        text = line.rstrip()
+        if not text:
+            continue
+        lines.append(text)
+        try:
+            event = json.loads(text)
+            if isinstance(event, dict) and isinstance(event.get("type"), str):
+                emit(event["type"], event.get("payload") if isinstance(event.get("payload"), dict) else {}, task_id=task_id)
+                continue
+        except Exception:
+            pass
+        emit("task_log", {"level": "info", "message": text}, task_id=task_id)
+    return process.wait(), "\n".join(lines[-40:])
+
+
+def _workflow_task_output_dir(output_dir: str, input_path: str, output_layout: str) -> Path:
+    return Path(output_dir) / Path(input_path).stem if output_layout == "folders" else Path(output_dir)
+
+
+def _prepare_workflow_batch_tasks(raw_tasks: Any, root_task_id: str) -> tuple[list[dict[str, str]], str | None, str | None]:
+    if not isinstance(raw_tasks, list) or not raw_tasks:
+        return [], "WORKFLOW_INPUT_MISSING", "Missing workflow batch tasks"
+    batch_tasks: list[dict[str, str]] = []
+    for index, item in enumerate(raw_tasks):
+        if not isinstance(item, dict):
+            return [], "WORKFLOW_INPUT_MISSING", f"Invalid workflow batch task at index {index}"
+        task_id = str(item.get("taskId") or "").strip()
+        input_path = str(item.get("input") or "").strip()
+        if not task_id:
+            return [], "WORKFLOW_INPUT_MISSING", f"Missing taskId for workflow batch task {index + 1}"
+        if not input_path:
+            return [], "WORKFLOW_INPUT_MISSING", f"Missing input path for workflow batch task {task_id}"
+        source_path = Path(input_path)
+        if not source_path.exists():
+            return [], "INPUT_NOT_FOUND", f"Input not found: {input_path}"
+        batch_tasks.append({
+            "taskId": task_id,
+            "input": str(source_path),
+        })
+    return batch_tasks, None, None
+
+
+def _emit_workflow_batch_error(raw_tasks: Any, fallback_task_id: str, code: str, message: str, detail: str = "") -> int:
+    task_ids: list[str] = []
+    if isinstance(raw_tasks, list):
+        for item in raw_tasks:
+            if not isinstance(item, dict):
+                continue
+            task_id = str(item.get("taskId") or "").strip()
+            if task_id and task_id not in task_ids:
+                task_ids.append(task_id)
+    if not task_ids and fallback_task_id:
+        task_ids.append(fallback_task_id)
+    for task_id in task_ids:
+        emit_error(code, message, detail, task_id=task_id)
+    return 1
+
+
+def _finalize_workflow_outputs(output_dir: str, payload: dict[str, Any]) -> None:
+    """Move pymss CLI output from per-instrument subdirs into model-named dirs.
+
+    The CLI writes each stem into ``results/<instr>/<stem>_<instr>.wav``.
+    This function reads the workflow definition, maps instrument names to
+    their owning model (from the steps), and moves files into
+    ``results/<model_name>/``.  Overlapping stems go to the last model that
+    declares them.  Non-instrument loose files and unknown directories are
+    left untouched."""
+    wf_def = payload.get("workflow")
+    if not isinstance(wf_def, dict):
+        return
+    steps = wf_def.get("steps")
+    if not isinstance(steps, list) or not steps:
+        return
+    # stem → model_name
+    stem_model: dict[str, str] = {}
+    for step in steps:
+        if not isinstance(step, dict):
+            continue
+        mn = str(step.get("model") or "").strip()
+        if not mn:
+            continue
+        for stem in (step.get("stems") or []):
+            s = str(stem).strip()
+            if s:
+                stem_model[s.lower()] = mn
+    if not stem_model:
+        return
+    base = Path(output_dir)
+    for entry in list(base.iterdir()):
+        if not entry.is_dir():
+            continue
+        model_name = stem_model.get(entry.name.lower())
+        if not model_name:
+            continue
+        target_dir = base / model_name
+        target_dir.mkdir(exist_ok=True)
+        for f in entry.iterdir():
+            if not f.is_file():
+                continue
+            target = target_dir / f.name
+            if target.exists():
+                try:
+                    target.unlink()
+                except OSError:
+                    pass
+            f.rename(target)
+        try:
+            entry.rmdir()
+        except OSError:
+            pass
+
+
+def _step_id(step: dict, index: int) -> str:
+    return str(step.get("id") or f"step_{index + 1}")
+
+
+def _run_step_subprocess(step_payload: dict[str, Any], parent_task_id: str) -> tuple[int, str]:
+    """Run a single workflow step in a fresh worker subprocess.
+
+    Re-creating MSSeparator repeatedly inside one process accumulates
+    torch/CUDA/cuDNN state and makes the 3rd (or later) model hang while
+    loading its weights. Delegating each step to `python worker.py infer`
+    gives every step a brand-new interpreter, so no state carries over.
+
+    The child streams the same line-delimited JSON events the UI already
+    understands; we forward the progress/stage/log lines to the parent task
+    id and capture any error for reporting.
+    """
+    import json as _json
+    import subprocess as _subprocess
+    import sys as _sys
+    import threading as _threading
+
+    worker_dir = Path(__file__).resolve().parent
+    cmd = [_sys.executable, "worker.py", "infer", "--payload",
+           _json.dumps(step_payload, ensure_ascii=False)]
+    # Child inherits the parent worker's env, but we sandbox the Python import
+    # path: drop PYTHONPATH and skip the per-user site-packages so the child
+    # always imports the venv's pinned pymss 2.0.14 (never a stray older one).
+    # PATH stays intact -- pymss needs `ffmpeg`, torch needs CUDA DLLs.
+    child_env = os.environ.copy()
+    child_env.pop("PYTHONPATH", None)
+    child_env["PYTHONNOUSERSITE"] = "1"
+    kwargs: dict = dict(
+        stdout=_subprocess.PIPE,
+        stderr=_subprocess.PIPE,
+        cwd=str(worker_dir),
+        env=child_env,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        bufsize=1,
+    )
+    if _sys.platform == "win32":
+        kwargs["creationflags"] = getattr(_subprocess, "CREATE_NO_WINDOW", 0x08000000)
+
+    try:
+        proc = _subprocess.Popen(cmd, **kwargs)
+    except Exception as exc:  # noqa: BLE001
+        return 1, f"Failed to launch step subprocess: {exc}"
+
+    error_messages: list[str] = []
+    stderr_lines: list[str] = []
+
+    def _drain_stderr() -> None:
+        assert proc.stderr is not None
+        for line in proc.stderr:
+            stderr_lines.append(line)
+
+    stderr_thread = _threading.Thread(target=_drain_stderr, daemon=True)
+    stderr_thread.start()
+
+    try:
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            text = line.strip()
+            if not text:
+                continue
+            try:
+                ev = _json.loads(text)
+            except Exception:
+                continue
+            etype = ev.get("type", "")
+            pl = ev.get("payload") if isinstance(ev.get("payload"), dict) else {}
+            if etype == "error":
+                msg = (pl.get("message") or "") if isinstance(pl, dict) else str(pl)
+                if msg:
+                    error_messages.append(msg)
+                continue
+            if etype in ("task_log", "task_stage", "task_progress") and isinstance(pl, dict):
+                emit(etype, pl, task_id=parent_task_id)
+    finally:
+        try:
+            rc = proc.wait(timeout=60)
+        except Exception:  # noqa: BLE001
+            try:
+                proc.kill()
+            except Exception:  # noqa: BLE001
+                pass
+            rc = proc.wait()
+        stderr_thread.join(timeout=10)
+        for stream in (proc.stdout, proc.stderr):
+            if stream is not None:
+                try:
+                    stream.close()
+                except Exception:  # noqa: BLE001
+                    pass
+
+    if rc != 0 and not error_messages and stderr_lines:
+        tail = [ln.strip() for ln in stderr_lines if ln.strip()][-3:]
+        if tail:
+            error_messages.append(" | ".join(tail))
+    if rc != 0 and not error_messages:
+        error_messages.append(f"step subprocess exited with code {rc}")
+    return rc, " | ".join(error_messages[-3:]) if error_messages else ""
+
+
+def _run_simple_workflow_task(
+    payload: dict[str, Any],
+    task_id: str,
+    input_path: str,
+    output_dir: str,
+    output_format: str,
+) -> dict[str, Any]:
+    wf_def = payload.get("workflow")
+    if not isinstance(wf_def, dict):
+        raise ValueError("Invalid workflow definition")
+    steps = wf_def.get("steps")
+    if not isinstance(steps, list) or not steps:
+        raise ValueError("Workflow has no steps")
+
+    output_root = Path(output_dir)
+    output_root.mkdir(parents=True, exist_ok=True)
+    stem_cache: dict[str, str] = {}  # "stepN.stem" -> file path (inter-step)
+    outputs: list[dict[str, str]] = []
+
+    # Parameters shared by every step subprocess.
+    base_inference_params = dict(payload.get("inferenceParams") or {})
+    wf_defaults_ip = (wf_def.get("defaults") or {}).get("inference_params") or {}
+    if isinstance(wf_defaults_ip, dict):
+        base_inference_params.update(wf_defaults_ip)
+    step_env = {
+        "device": payload.get("device"),
+        "deviceIds": payload.get("deviceIds"),
+        "audioParams": payload.get("audioParams"),
+        "source": payload.get("source"),
+        "endpoint": payload.get("endpoint"),
+        "modelDir": payload.get("modelDir"),
+        "useTta": payload.get("useTta"),
+        "debug": payload.get("debug"),
+    }
+
+    for i, step in enumerate(steps):
+        if not isinstance(step, dict):
+            continue
+        model_name = str(step.get("model") or "").strip()
+        stems_to_save = [str(s).strip() for s in (step.get("stems") or []) if str(s).strip()]
+        input_ref = str(step.get("input") or "input").strip()
+        if not model_name or not stems_to_save:
+            continue
+
+        emit("task_stage",
+             {"stage": "separating",
+              "message": f"Step {i + 1}: {model_name}",
+              "progress": 35 + (i * 50 // len(steps))},
+             task_id=task_id)
+
+        # Resolve input: "input" -> original file; "stepN.stem" -> cached file
+        step_input = stem_cache.get(input_ref, input_path)
+
+        inference_params = dict(base_inference_params)
+        overlap_size = step.get("overlapSize")
+        if isinstance(overlap_size, (int, float)) and int(overlap_size) > 0:
+            inference_params["overlap_size"] = int(overlap_size)
+
+        # Each step runs as its own `infer` subprocess so the model loads in
+        # a clean interpreter -- this is what avoids the positional hang.
+        step_payload = {
+            "taskId": f"{task_id}_step{i + 1}",
+            "input": step_input,
+            "model": model_name,
+            "selectedStems": stems_to_save,
+            # output goes to the base results dir; cmd_infer finalizes into
+            # results/<model_name>/ so each model keeps its own folder.
+            "output": output_dir,
+            "outputLayout": "flat",
+            "outputFormat": output_format,
+            "inferenceParams": inference_params,
+            **{k: v for k, v in step_env.items() if v is not None},
+        }
+
+        emit("task_stage",
+             {"stage": "loading_model",
+              "message": f"Step {i + 1}: loading {model_name}",
+              "progress": 35 + (i * 50 // len(steps))},
+             task_id=task_id)
+
+        rc, detail = _run_step_subprocess(step_payload, task_id)
+        if rc != 0:
+            emit_error("WORKFLOW_STEP_FAILED",
+                       f"Step {i + 1} ({model_name}) failed",
+                       detail or f"exit code {rc}",
+                       task_id=task_id)
+            # Abort the workflow; already-written step outputs stay on disk.
+            raise RuntimeError(f"Workflow step {i + 1} ({model_name}) failed: {detail or rc}")
+
+        emit("task_stage",
+             {"stage": "writing_output",
+              "message": f"Organizing {model_name} outputs",
+              "progress": 85 + (i * 50 // len(steps))},
+             task_id=task_id)
+
+        step_out_dir = output_root / model_name
+        step_outputs: list[dict[str, str]] = []
+        if step_out_dir.is_dir():
+            step_outputs = collect_outputs(str(step_out_dir), [], output_format)
+        outputs.extend(step_outputs)
+
+        sid = _step_id(step, i)
+        for stem in stems_to_save:
+            for so in step_outputs:
+                if so.get("stem") == stem:
+                    stem_cache[f"{sid}.{stem}"] = so["path"]
+                    break
+
+    return {
+        "files": [o["path"] for o in outputs],
+        "outputs": outputs,
+        "outputDir": str(output_root.resolve()),
+        "outputFormat": output_format,
+    }
+
+
+def cmd_infer_workflow_batch(payload: dict[str, Any]) -> int:
+    raw_tasks = payload.get("tasks")
+    first_task_id = ""
+    if isinstance(raw_tasks, list) and raw_tasks and isinstance(raw_tasks[0], dict):
+        first_task_id = str(raw_tasks[0].get("taskId") or "")
+    root_task_id = str(payload.get("taskId") or first_task_id or "")
+    output_dir = _normalize_output_dir(payload.get("output"))
+    output_format = str(payload.get("outputFormat") or "wav")
+    output_layout = _normalize_output_layout(payload.get("outputLayout"))
+    if not root_task_id:
+        return emit_error("WORKFLOW_TASK_ID_MISSING", "Workflow task id is required")
+
+    batch_tasks, error_code, error_message = _prepare_workflow_batch_tasks(raw_tasks, root_task_id)
+    if error_code:
+        return _emit_workflow_batch_error(
+            raw_tasks,
+            root_task_id,
+            error_code,
+            error_message or "Invalid workflow batch tasks",
+        )
+
+    workflow_path = _write_workflow_definition(payload, root_task_id)
+    if not workflow_path.is_file():
+        return _emit_workflow_batch_error(raw_tasks, root_task_id, "WORKFLOW_MISSING", "Workflow definition is required")
+
+    failed = False
+    try:
+        graph_workflow = is_graph_workflow_definition(payload.get("workflow"))
+        output_root = Path(output_dir)
+        output_root.mkdir(parents=True, exist_ok=True)
+        for item in batch_tasks:
+            task_id = item["taskId"]
+            input_path = item["input"]
+            task_output_dir = _workflow_task_output_dir(output_dir, input_path, output_layout)
+            emit("task_started", {"workflow": payload.get("workflowName"), "input": input_path, "output": str(task_output_dir)}, task_id=task_id)
+            emit("task_stage", {"stage": "validating_input", "message": "Validating workflow input", "progress": 12}, task_id=task_id)
+            emit("task_stage", {"stage": "separating", "message": "Running workflow", "progress": 35}, task_id=task_id)
+            if graph_workflow:
+                try:
+                    result = run_graph_workflow_task(
+                        payload=payload,
+                        task_id=task_id,
+                        input_path=input_path,
+                        output_dir=output_dir,
+                        output_layout=output_layout,
+                    )
+                except Exception as exc:
+                    failed = True
+                    emit_error("WORKFLOW_RUN_FAILED", str(exc), traceback.format_exc(), task_id=task_id)
+                    continue
+                emit("task_stage", {"stage": "writing_output", "message": "Collecting workflow outputs", "progress": 92}, task_id=task_id)
+                emit("task_done", result, task_id=task_id)
+                continue
+            try:
+                emit("task_stage", {"stage": "writing_output", "message": "Running workflow steps", "progress": 35}, task_id=task_id)
+                result = _run_simple_workflow_task(
+                    payload=payload,
+                    task_id=task_id,
+                    input_path=input_path,
+                    output_dir=output_dir,
+                    output_format=output_format,
+                )
+                emit("task_stage", {"stage": "writing_output", "message": "Collecting workflow outputs", "progress": 92}, task_id=task_id)
+                emit("task_done", result, task_id=task_id)
+            except Exception as exc:
+                failed = True
+                emit_error("WORKFLOW_RUN_FAILED", str(exc), traceback.format_exc(), task_id=task_id)
+        return 1 if failed else 0
+    except Exception as exc:
+        detail = traceback.format_exc()
+        for item in batch_tasks:
+            emit_error("WORKFLOW_RUN_FAILED", str(exc), detail, task_id=item["taskId"])
+        return 1
+
+
+def cmd_infer_workflow(payload: dict[str, Any]) -> int:
+    if isinstance(payload.get("tasks"), list):
+        return cmd_infer_workflow_batch(payload)
+
+    task_id = str(payload.get("taskId") or "")
+    input_path = str(payload.get("input") or "").strip()
+    output_dir = _normalize_output_dir(payload.get("output"))
+    output_format = str(payload.get("outputFormat") or "wav")
+    output_layout = _normalize_output_layout(payload.get("outputLayout"))
+    if not task_id:
+        return emit_error("WORKFLOW_TASK_ID_MISSING", "Workflow task id is required")
+    if not input_path:
+        return emit_error("WORKFLOW_INPUT_MISSING", "Workflow input is required", task_id=task_id)
+
+    workflow_path = _write_workflow_definition(payload, task_id)
+    if not workflow_path.is_file():
+        return emit_error("WORKFLOW_MISSING", "Workflow definition is required", task_id=task_id)
+
+    try:
+        source_path = Path(input_path)
+        task_output_dir = _workflow_task_output_dir(output_dir, input_path, output_layout)
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+        emit("task_started", {"workflow": payload.get("workflowName"), "input": input_path, "output": str(task_output_dir)}, task_id=task_id)
+        emit("task_stage", {"stage": "validating_input", "message": "Validating workflow input", "progress": 12}, task_id=task_id)
+        if not source_path.exists():
+            return emit_error("INPUT_NOT_FOUND", f"Input not found: {input_path}", task_id=task_id)
+
+        emit("task_stage", {"stage": "separating", "message": "Running workflow", "progress": 35}, task_id=task_id)
+        if is_graph_workflow_definition(payload.get("workflow")):
+            try:
+                result = run_graph_workflow_task(
+                    payload=payload,
+                    task_id=task_id,
+                    input_path=input_path,
+                    output_dir=output_dir,
+                    output_layout=output_layout,
+                )
+            except Exception as exc:
+                return emit_error("WORKFLOW_RUN_FAILED", str(exc), traceback.format_exc(), task_id=task_id)
+            emit("task_stage", {"stage": "writing_output", "message": "Collecting workflow outputs", "progress": 92}, task_id=task_id)
+            emit("task_done", result, task_id=task_id)
+            return 0
+        try:
+            emit("task_stage", {"stage": "writing_output", "message": "Running workflow steps", "progress": 35}, task_id=task_id)
+            result = _run_simple_workflow_task(
+                payload=payload,
+                task_id=task_id,
+                input_path=input_path,
+                output_dir=output_dir,
+                output_format=output_format,
+            )
+            emit("task_stage", {"stage": "writing_output", "message": "Collecting workflow outputs", "progress": 92}, task_id=task_id)
+            emit("task_done", result, task_id=task_id)
+            return 0
+        except Exception as exc:
+            return emit_error("WORKFLOW_RUN_FAILED", str(exc), traceback.format_exc(), task_id=task_id)
+    except Exception as exc:
+        return emit_error("WORKFLOW_RUN_FAILED", str(exc), traceback.format_exc(), task_id=task_id)

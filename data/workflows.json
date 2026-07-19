@@ -1,0 +1,112 @@
+{
+  "workflows": [
+    {
+      "id": "0b88063d",
+      "name": "未命名工作流",
+      "description": "",
+      "definition": {
+        "kind": "pymss-studio-graph",
+        "version": 2,
+        "defaults": {
+          "inference_params": {}
+        },
+        "graph": {
+          "nodes": [
+            {
+              "id": "input",
+              "type": "input_audio",
+              "position": {
+                "x": 80,
+                "y": 160
+              },
+              "data": {}
+            },
+            {
+              "id": "save",
+              "type": "save_outputs",
+              "position": {
+                "x": 980,
+                "y": 160
+              },
+              "data": {
+                "outputs": {}
+              }
+            }
+          ],
+          "edges": [],
+          "viewport": {
+            "x": 0,
+            "y": 0,
+            "k": 1
+          }
+        }
+      },
+      "runParams": {
+        "device": "auto",
+        "outputFormat": "wav",
+        "useTta": false
+      },
+      "batch": {
+        "folder": "",
+        "recursive": false,
+        "sort": true
+      },
+      "createdAt": 1784298471997,
+      "updatedAt": 1784298472016
+    },
+    {
+      "id": "2192c003",
+      "name": "未命名工作流",
+      "description": "",
+      "definition": {
+        "kind": "pymss-studio-graph",
+        "version": 2,
+        "defaults": {
+          "inference_params": {}
+        },
+        "graph": {
+          "nodes": [
+            {
+              "id": "input",
+              "type": "input_audio",
+              "position": {
+                "x": 80,
+                "y": 160
+              },
+              "data": {}
+            },
+            {
+              "id": "save",
+              "type": "save_outputs",
+              "position": {
+                "x": 980,
+                "y": 160
+              },
+              "data": {
+                "outputs": {}
+              }
+            }
+          ],
+          "edges": [],
+          "viewport": {
+            "x": 0,
+            "y": 0,
+            "k": 1
+          }
+        }
+      },
+      "runParams": {
+        "device": "auto",
+        "outputFormat": "wav",
+        "useTta": false
+      },
+      "batch": {
+        "folder": "",
+        "recursive": false,
+        "sort": true
+      },
+      "createdAt": 1784303055550,
+      "updatedAt": 1784303055672
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "model_type": "tiger",
+  "num_sources": 2,
+  "sample_rate": 16000,
+  "win": 640,
+  "stride": 160,
+  "num_tensors": 838
+}

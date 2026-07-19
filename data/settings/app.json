@@ -1,0 +1,20 @@
+{
+  "animationsEnabled": true,
+  "defaultDevice": "auto",
+  "defaultFormat": "wav",
+  "developerMode": false,
+  "downloadSource": "modelscope",
+  "flacBitDepth": "PCM_24",
+  "locale": "system",
+  "m4aBitRate": "512k",
+  "m4aCodec": "aac",
+  "maxConcurrentSeparations": 1,
+  "modelDir": "D:\\AI\\Pymss-Studio-0.0.8-windows-x64-cuda\\data\\models",
+  "mp3BitRate": "320k",
+  "outputDir": "D:\\AI\\Pymss-Studio-0.0.8-windows-x64-cuda\\data\\outputs",
+  "scaleFactor": 1,
+  "startupOnboardingSeen": true,
+  "themeAccent": "blue",
+  "themeMode": "system",
+  "wavBitDepth": "PCM_16"
+}
