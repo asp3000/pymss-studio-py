@@ -93,6 +93,59 @@ python run.py
 
 ---
 
+## 模型运行引擎
+
+从 v2.2 开始，Pymss Studio 支持**多引擎切换**，解决不同工具对同一模型的输出不一致问题。
+
+### 引擎架构
+
+```
+分离界面 → 选择引擎（Pymss / MSST）
+               │
+      ┌────────┴────────┐
+      ▼                 ▼
+  Pymss 引擎        MSST 引擎
+  (pymss_core)      (MSST-WebUI runtime)
+      │                 │
+      ▼                 ▼
+  pymss/utils.py    MSST/utils/utils.py
+  pymss_core/       MSST/modules/
+```
+
+### 引擎对照表
+
+| 架构 | 可用引擎 | 说明 |
+|---|---|---|
+| `mel_band_roformer` | Pymss (默认), MSST | ⚠️ Pymss_core 实现在 vocals 通道有已知偏差，可切到 MSST 引擎获得正确结果 |
+| `bs_roformer` | Pymss (默认), MSST | 两边均有实现 |
+| `htdemucs` / `mdx23c` / `bandit` / `bandit_v2` / `scnet` / `apollo` | Pymss (默认), MSST | 两边均有实现 |
+| `segm_models` / `swin_upernet` / `bs_mamba2` | **仅 MSST** | Pymss 不支持，引擎锁定不可切换 |
+| `vr` / `tiger` / `bs_roformer_hyperace` / `legacy_demucs` / `legacy_tasnet` | **仅 Pymss** | MSST 不支持，引擎锁定不可切换 |
+
+### 如何切换
+
+1. 在「分离」页面选择模型
+2. 展开「高级设置」，找到 **引擎** 下拉框
+3. 选择 `Pymss`（默认引擎）或 `MSST`
+4. 点击「开始分离」即可
+
+> 当某个架构仅支持单一引擎时，引擎下拉框**禁用**，无法切换。
+
+### 添加新引擎
+
+在 `engine/__init__.py` 中注册：
+
+```python
+from .my_engine import MyEngine
+
+REGISTRY["my_engine"] = MyEngine
+ARCHITECTURE_ENGINES["bs_roformer"] = ["pymss", "my_engine"]
+```
+
+新引擎需实现 `load_model()` + `separate()` 接口，也可通过 `MsstSeparatorAdapter` 模式暴露 `process_folder()`。
+
+---
+
 ## 项目结构
 
 ```
