@@ -87,26 +87,33 @@ class AppConfig:
     def resolve_python_exe(self) -> str:
         """Absolute path of the interpreter that runs ``worker.py``.
 
-        Always prefer the project's bundled venv (``venv/Scripts/python.exe``):
-        it is the only interpreter guaranteed to carry the pinned ``pymss`` +
-        the torch/PySide6 the workers need. Falling back to a bare ``python``
-        resolved via PATH is fragile -- a Python on PATH may expose a different
-        (older) ``pymss`` build and crash with
-        ``MSSeparator.__init__() got an unexpected keyword argument ...``.
-
-        The configured ``python_exe`` is still honoured when it points at a real
-        file; the PATH-based ``python`` lookup is kept only as a last resort.
+        避免使用 venv 的 launcher（pythonw.exe/python.exe 约 100-263KB 的小启动器），
+        它会在 Windows 上再 CreateProcess 一次系统 Python，导致两个 python* 进程。
+        改为直接使用 venv pyvenv.cfg 中配置的系统 Python 解释器，配合
+        start.bat 设置的 PYTHONPATH=venv\\Lib\\site-packages 即可加载到所有依赖包。
         """
         configured = self.data.get("python_exe")
         resolved = self._resolve_path(self.pkg_dir, configured) if configured else ""
-        if resolved and os.path.isfile(resolved):
+        # 检测到是 venv launcher 时跳过，转用 pyvenv.cfg 中的系统 Python
+        if resolved and os.path.isfile(resolved) and "venv" not in Path(resolved).parts:
             return resolved
-        # 1) bundled venv (most reliable, carries the pinned pymss)
+        # 1) 从 venv 配置中读取底层 Python
+        venv_cfg = self.pkg_dir / "venv" / "pyvenv.cfg"
+        if venv_cfg.is_file():
+            try:
+                for line in venv_cfg.read_text(encoding="utf-8", errors="ignore").splitlines():
+                    if line.strip().startswith("executable"):
+                        py = line.split("=", 1)[1].strip()
+                        if os.path.isfile(py):
+                            return py
+            except Exception:
+                pass
+        # 2) 兜底：venv 的 Scripts（仍会产生 launcher + 双进程问题）
         for cand in ("venv/Scripts/python.exe", ".venv/Scripts/python.exe"):
             venv_py = self.pkg_dir / cand
             if venv_py.is_file():
                 return str(venv_py.resolve())
-        # 2) last-resort PATH lookup
+        # 3) PATH 查找
         return "python"
 
     @staticmethod
