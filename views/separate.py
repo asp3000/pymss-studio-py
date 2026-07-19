@@ -799,15 +799,17 @@ class SeparateView(QWidget):
         r3.addWidget(self.cb_standardize)
         r3.addWidget(self.cb_normalize)
         r3.addWidget(self.cb_slow_mode)
-        # 引擎选择
+        # 引擎选择（单选框）
         r3.addWidget(self._vsep())
         eng_lbl = QLabel("引擎：")
         eng_lbl.setStyleSheet("font-size:12px;color:#475569;")
         r3.addWidget(eng_lbl)
-        self.engine_combo = QComboBox()
-        self.engine_combo.setFixedWidth(130)
-        self.engine_combo.currentIndexChanged.connect(self._on_engine_changed)
-        r3.addWidget(self.engine_combo)
+        self.engine_group = QButtonGroup(self)
+        self.engine_radio_widget = QWidget()
+        self.engine_radio_layout = QHBoxLayout(self.engine_radio_widget)
+        self.engine_radio_layout.setContentsMargins(0, 0, 0, 0)
+        self.engine_radio_layout.setSpacing(4)
+        r3.addWidget(self.engine_radio_widget)
         r3.addStretch(1)
         v.addLayout(r3)
 
@@ -1053,33 +1055,47 @@ class SeparateView(QWidget):
             self._update_engine_combo(info)
 
     def _update_engine_combo(self, info: dict) -> None:
-        """根据当前模型的架构更新引擎下拉选项。"""
+        """根据当前模型的架构更新引擎单选框。"""
         from engine import engines_for_architecture, default_engine_for, engine_label
         arch = (info.get("architecture") or info.get("modelType") or "").strip().lower()
         engines = engines_for_architecture(arch)
-        self.engine_combo.blockSignals(True)
-        self.engine_combo.clear()
-        for e in engines:
-            self.engine_combo.addItem(engine_label(e), e)
-        if len(engines) == 1:
-            self.engine_combo.setEnabled(False)
-            self.engine_combo.setToolTip("此架构仅支持此引擎，不可切换")
-        else:
-            self.engine_combo.setEnabled(True)
-            self.engine_combo.setToolTip("选择模型运行引擎（仅当架构支持多个引擎时可切换）")
-        # 设为默认引擎
+        # 清除旧的 radio
+        for rb in self.engine_group.buttons():
+            self.engine_group.removeButton(rb)
+            rb.deleteLater()
+        # 清除布局中的旧 widget
+        while self.engine_radio_layout.count():
+            item = self.engine_radio_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        # 创建新 radio
         default = default_engine_for(arch)
-        idx = self.engine_combo.findData(default)
-        if idx >= 0:
-            self.engine_combo.setCurrentIndex(idx)
-        self.engine = default
-        self.engine_combo.blockSignals(False)
+        for e in engines:
+            rb = QRadioButton(engine_label(e))
+            rb.setStyleSheet("font-size:12px;")
+            if len(engines) == 1:
+                rb.setEnabled(False)
+                rb.setToolTip("此架构仅支持此引擎，不可切换")
+            else:
+                rb.setToolTip("选择模型运行引擎")
+            self.engine_group.addButton(rb)
+            self.engine_radio_layout.addWidget(rb)
+            if e == default:
+                rb.setChecked(True)
+                self.engine = e
+        self.engine_group.buttonToggled.connect(self._on_engine_radio_toggled)
 
-    def _on_engine_changed(self, idx: int) -> None:
-        """引擎下拉选择改变时。"""
-        eng = self.engine_combo.itemData(idx)
-        if eng is not None:
-            self.engine = eng
+    def _on_engine_radio_toggled(self, btn: QRadioButton, checked: bool) -> None:
+        """引擎单选框切换时。"""
+        if not checked:
+            return
+        from engine import engine_label
+        # 通过 label 反查 engine name
+        label = btn.text()
+        for name, lbl in {n: engine_label(n) for n in ["pymss", "msst"]}.items():
+            if lbl == label:
+                self.engine = name
+                return
 
     def _rebuild_stems(self, info: dict) -> None:
         lay = self.stems_box.layout()

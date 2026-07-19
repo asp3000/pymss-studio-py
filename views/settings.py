@@ -15,7 +15,7 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QStackedWidget, QFormLayout,
     QLineEdit, QComboBox, QPushButton, QFileDialog, QTextEdit, QLabel,
-    QCheckBox, QSpinBox, QGroupBox,
+    QCheckBox, QSpinBox, QGroupBox, QGridLayout, QFrame,
 )
 
 from ..config import AppConfig
@@ -24,6 +24,7 @@ SECTIONS = [
     ("关于", "about"),
     ("路径", "paths"),
     ("默认参数", "defaults"),
+    ("处理引擎", "engine"),
 ]
 
 
@@ -56,6 +57,7 @@ class SettingsView(QWidget):
         self.stack.addWidget(self._build_about())
         self.stack.addWidget(self._build_paths())
         self.stack.addWidget(self._build_defaults())
+        self.stack.addWidget(self._build_engine())
         root.addWidget(self.stack, 1)
 
         self.sidebar.setCurrentRow(0)
@@ -335,3 +337,65 @@ class SettingsView(QWidget):
     def _on_nav(self, row: int) -> None:
         if 0 <= row < len(SECTIONS):
             self.stack.setCurrentIndex(row)
+
+    # ---- engine config ------------------------------------------------
+    def _build_engine(self) -> QWidget:
+        w = QWidget()
+        v = QVBoxLayout(w)
+        v.setContentsMargins(0, 0, 0, 0)
+
+        title = QLabel("<b style='font-size:16px'>处理引擎配置</b>")
+        title.setStyleSheet("color:#1e293b;")
+        v.addWidget(title)
+
+        desc = QLabel(
+            "Pymss Studio 支持多引擎切换。"
+            "当某个模型在 Pymss 引擎下输出异常时，"
+            "可切换到 MSST 引擎获得正确结果。"
+        )
+        desc.setWordWrap(True)
+        desc.setStyleSheet("color:#64748b;")
+        v.addWidget(desc)
+        v.addSpacing(10)
+
+        # 引擎对照表
+        from engine import ARCHITECTURE_ENGINES, ENGINE_LABELS, DEFAULT_ENGINE
+
+        table = QGroupBox("架构 → 引擎对照表")
+        grid = QGridLayout(table)
+        grid.setSpacing(6)
+        headers = ["架构", "可用引擎", "默认引擎", "可否切换"]
+        for col, h in enumerate(headers):
+            lbl = QLabel(f"<b>{h}</b>")
+            lbl.setStyleSheet("color:#1e293b;")
+            grid.addWidget(lbl, 0, col)
+
+        row = 1
+        for arch, engines in sorted(ARCHITECTURE_ENGINES.items()):
+            # 架构名
+            grid.addWidget(QLabel(arch), row, 0)
+            # 可用引擎
+            labels = [ENGINE_LABELS.get(e, e) for e in engines]
+            grid.addWidget(QLabel(" / ".join(labels)), row, 1)
+            # 默认引擎
+            default = engines[0]
+            grid.addWidget(QLabel(ENGINE_LABELS.get(default, default)), row, 2)
+            # 可否切换
+            switchable = QLabel("✅ 可" if len(engines) > 1 else "❌ 不可")
+            switchable.setStyleSheet(
+                "color: #059669;" if len(engines) > 1 else "color: #dc2626;"
+            )
+            grid.addWidget(switchable, row, 3)
+            row += 1
+
+        v.addWidget(table)
+
+        note = QLabel(
+            "💡 在「分离」页选择模型后，高级设置中的引擎选项会自动匹配当前架构。\n"
+            "如架构仅支持单一引擎，引擎选择将锁定不可切换。"
+        )
+        note.setWordWrap(True)
+        note.setStyleSheet("color:#64748b; font-size:12px; margin-top:8px;")
+        v.addWidget(note)
+        v.addStretch(1)
+        return w
