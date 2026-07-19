@@ -81,7 +81,11 @@ def _load_state_dict(model_path: str, device: str, model_type: str):
     if model_path.endswith(".safetensors"):
         from safetensors.torch import load_file
         return load_file(model_path, device=device)
-    return torch.load(model_path, map_location=device, weights_only=True)
+    try:
+        return torch.load(model_path, map_location=device, weights_only=True)
+    except Exception:
+        # 某些新格式 ckpt（如 UntypedStorage / auto tag）无法以 weights_only=True 加载
+        return torch.load(model_path, map_location=device, weights_only=False)
 
 
 class MsstEngine:
