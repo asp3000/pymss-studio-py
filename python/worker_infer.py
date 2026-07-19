@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
+import logging
 import inspect
 import shutil
 import subprocess
@@ -709,6 +710,9 @@ def cmd_infer_batch(payload: dict[str, Any]) -> int:
             from pymss import get_separation_logger  # type: ignore
             logger = get_separation_logger()
             log_handler = JsonLogHandler(root_task_id)
+            # 读取 debug 标志，让 handler 也允许 DEBUG 级别通过
+            if bool(payload.get("debug", False)):
+                log_handler.setLevel(logging.DEBUG)
             logger.addHandler(log_handler)
         except Exception:
             logger = None
@@ -867,6 +871,8 @@ def cmd_infer(payload: dict[str, Any]) -> int:
             from pymss import get_separation_logger  # type: ignore
             logger = get_separation_logger()
             log_handler = JsonLogHandler(task_id)
+            if bool(payload.get("debug", False)):
+                log_handler.setLevel(logging.DEBUG)
             logger.addHandler(log_handler)
         except Exception:
             logger = None
