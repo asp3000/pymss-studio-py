@@ -140,6 +140,7 @@ class MsstEngine:
     def separate(self, config, model, mix: np.ndarray, device: str,
                  model_type: str, callback=None) -> Dict[str, np.ndarray]:
         """用 MSST 的 ``demix()`` 执行音源分离。"""
+        device = self._resolve_device(device)
         msst_demix = _import_msst("demix")
         _cwd = os.getcwd()
         os.chdir(MSST_ROOT)
