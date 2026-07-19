@@ -104,28 +104,40 @@ class MsstEngine:
                    device: str = "cuda", device_ids: Optional[list] = None,
                    inference_params: Optional[dict] = None):
         """加载模型，返回 (model, config)。"""
-        get_model_from_config = _import_msst("get_model_from_config")
-        _cwd = os.getcwd()
-        os.chdir(MSST_ROOT)
+        import sys as _sys
         try:
-            model, config = get_model_from_config(model_type, config_path)
-        finally:
-            os.chdir(_cwd)
+            print("[MsstEngine] STEP 1: get_model_from_config...", file=_sys.stderr, flush=True)
+            get_model_from_config = _import_msst("get_model_from_config")
+            _cwd = os.getcwd()
+            os.chdir(MSST_ROOT)
+            try:
+                model, config = get_model_from_config(model_type, config_path)
+            finally:
+                os.chdir(_cwd)
+            print("[MsstEngine] STEP 2: apply_inference_params...", file=_sys.stderr, flush=True)
+            _apply_inference_params(config, inference_params)
 
-        _apply_inference_params(config, inference_params)
+            print("[MsstEngine] STEP 3: _load_state_dict...", file=_sys.stderr, flush=True)
+            state_dict = _load_state_dict(model_path, device, model_type)
+            print(f"[MsstEngine] STEP 4: load_state_dict ({len(state_dict)} keys)...", file=_sys.stderr, flush=True)
+            model.load_state_dict(state_dict)
 
-        state_dict = _load_state_dict(model_path, device, model_type)
-        model.load_state_dict(state_dict)
+            if device_ids and len(device_ids) > 1:
+                model = torch.nn.DataParallel(model, device_ids=device_ids)
+            print("[MsstEngine] STEP 5: model.to(device)...", file=_sys.stderr, flush=True)
+            model = model.to(device)
+            model.eval()
 
-        if device_ids and len(device_ids) > 1:
-            model = torch.nn.DataParallel(model, device_ids=device_ids)
-        model = model.to(device)
-        model.eval()
-
-        self._model = model
-        self._config = config
-        self._loaded = True
-        return model, config
+            self._model = model
+            self._config = config
+            self._loaded = True
+            print("[MsstEngine] DONE", file=_sys.stderr, flush=True)
+            return model, config
+        except Exception as e:
+            print(f"[MsstEngine] FAILED at step above: {type(e).__name__}: {e}", file=_sys.stderr, flush=True)
+            import traceback
+            traceback.print_exc(file=_sys.stderr)
+            raise
 
     # ── 推理 ──────────────────────────────────────────────
 
