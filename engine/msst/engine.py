@@ -83,9 +83,10 @@ def _load_state_dict(model_path: str, device: str, model_type: str):
         return load_file(model_path, device=device)
     # MSST 引擎直接使用 weights_only=False，因为 MSST 的 ckpt 使用新格式存储，
     # weights_only=True 会拒绝 torch.storage.UntypedStorage (tagged with auto)
-    print(f"[MsstEngine] Loading checkpoint with weights_only=False ...", flush=True)
+    import sys as _sys
+    print("[MsstEngine] Loading with weights_only=False ...", file=_sys.stderr, flush=True)
     sd = torch.load(model_path, map_location=device, weights_only=False)
-    print(f"[MsstEngine] Loaded {len(sd)} keys", flush=True)
+    print(f"[MsstEngine] OK: {len(sd)} keys", file=_sys.stderr, flush=True)
     return sd
 
 
