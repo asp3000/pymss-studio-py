@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QStackedWidget, QFormLayout,
     QLineEdit, QComboBox, QPushButton, QFileDialog, QTextEdit, QLabel,
     QCheckBox, QSpinBox, QGroupBox, QGridLayout, QFrame,
+    QButtonGroup, QRadioButton,
 )
 
 from ..config import AppConfig
