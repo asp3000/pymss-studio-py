@@ -10,6 +10,34 @@ from typing import Any
 
 WORKER_VERSION = "0.1.0"
 
+# ── 引擎注入 ──────────────────────────────────────────────
+def _inject_engine_for_model(inference_params: dict, model_name: str) -> None:
+    """从 config.json 读取 engine_map，根据模型名查找其架构对应的引擎并注入。
+
+    在 inference_params 中设置 ``engine`` 键，供 _prepare_separator 使用。
+    若已存在 engine 键则跳过（允许 UI 或工作流定义显式覆盖）。
+    """
+    if "engine" in inference_params:
+        return
+    try:
+        # 项目根目录：python/worker_protocol.py → python/ → 项目根
+        project_root = Path(__file__).resolve().parent.parent
+        cfg_path = project_root / "config.json"
+        if not cfg_path.is_file():
+            return
+        import json
+        cfg = json.loads(cfg_path.read_text(encoding="utf-8", errors="ignore"))
+        engine_map = cfg.get("engine_map") or {}
+
+        # 查找模型的架构
+        from pymss.model_registry import get_model_entry
+        entry = get_model_entry(model_name)
+        arch = (entry.model_type or entry.architecture or "").strip().lower()
+        if arch in engine_map:
+            inference_params["engine"] = engine_map[arch]
+    except Exception:
+        pass
+
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")

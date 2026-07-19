@@ -7,7 +7,7 @@ from typing import Any
 import numpy as np
 
 from worker_infer import JsonLogHandler, _prepare_separator, normalize_audio_params, resolve_pymss_output_dir
-from worker_protocol import emit
+from worker_protocol import _inject_engine_for_model, emit
 
 
 EXECUTABLE_NODE_TYPES = {
@@ -423,6 +423,8 @@ def _execute_separate_node(
         raise ValueError(f"Workflow node {node_id} has no stems configured.")
 
     inference_params = dict(workflow_defaults.get("inference_params") or {})
+    # 注入引擎配置：根据模型架构查找 engine_map
+    _inject_engine_for_model(inference_params, model_name)
     overlap_size = node_data.get("overlapSize")
     if isinstance(overlap_size, (int, float)) and int(overlap_size) > 0:
         inference_params["overlap_size"] = int(overlap_size)

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from worker_graph_workflows import is_graph_workflow_definition, run_graph_workflow_task
+from worker_protocol import _inject_engine_for_model, emit, emit_error
 from worker_infer import (
     _normalize_output_layout, _normalize_output_dir, _resolve_separator_device,
     collect_outputs,
@@ -399,6 +400,8 @@ def _run_simple_workflow_task(
         overlap_size = step.get("overlapSize")
         if isinstance(overlap_size, (int, float)) and int(overlap_size) > 0:
             inference_params["overlap_size"] = int(overlap_size)
+        # 注入引擎配置：根据模型架构查找 engine_map
+        _inject_engine_for_model(inference_params, model_name)
 
         # Each step runs as its own `infer` subprocess so the model loads in
         # a clean interpreter -- this is what avoids the positional hang.
