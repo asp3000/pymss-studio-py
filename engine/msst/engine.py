@@ -83,20 +83,7 @@ def _load_state_dict(model_path: str, device: str, model_type: str):
         return load_file(model_path, device=device)
     # MSST 引擎直接使用 weights_only=False，因为 MSST 的 ckpt 使用新格式存储，
     # weights_only=True 会拒绝 torch.storage.UntypedStorage (tagged with auto)
-    # 先试 weights_only=False，若还失败把完整路径写入 D:/msst_debug.log
-    try:
-        sd = torch.load(model_path, map_location=device, weights_only=False)
-        return sd
-    except Exception as e:
-        import traceback, sys
-        with open(r"D:\msst_debug.log", "a") as _f:
-            _f.write(f"[MsstEngine] _load_state_dict FAIL\n  path={model_path}\n  device={device}\n  type={model_type}\n")
-            _f.write(f"  error={type(e).__name__}: {e}\n")
-            traceback.print_exc(file=_f)
-            _f.write("\n")
-        # 还不行就用 map_location='cpu' 再试一次
-        sd = torch.load(model_path, map_location="cpu", weights_only=False)
-        return sd
+    return torch.load(model_path, map_location=device, weights_only=False)
 
 
 class MsstEngine:
@@ -109,44 +96,44 @@ class MsstEngine:
 
     # ── 模型加载 ──────────────────────────────────────────
 
+    @staticmethod
+    def _resolve_device(device: str) -> str:
+        """将 "auto" 解析为实际设备（cuda / cpu），torch.load 不支持 "auto"。"""
+        d = str(device).strip().lower()
+        if d == "auto":
+            if torch.cuda.is_available():
+                return "cuda"
+            return "cpu"
+        return d
+
     def load_model(self, model_type: str, model_path: str, config_path: str,
                    device: str = "cuda", device_ids: Optional[list] = None,
                    inference_params: Optional[dict] = None):
         """加载模型，返回 (model, config)。"""
-        import sys as _sys
+        # 解析 "auto" → 实际设备（torch.load 不支持 map_location="auto"）
+        device = self._resolve_device(device)
+        get_model_from_config = _import_msst("get_model_from_config")
+        _cwd = os.getcwd()
+        os.chdir(MSST_ROOT)
         try:
-            print("[MsstEngine] STEP 1: get_model_from_config...", file=_sys.stderr, flush=True)
-            get_model_from_config = _import_msst("get_model_from_config")
-            _cwd = os.getcwd()
-            os.chdir(MSST_ROOT)
-            try:
-                model, config = get_model_from_config(model_type, config_path)
-            finally:
-                os.chdir(_cwd)
-            print("[MsstEngine] STEP 2: apply_inference_params...", file=_sys.stderr, flush=True)
-            _apply_inference_params(config, inference_params)
+            model, config = get_model_from_config(model_type, config_path)
+        finally:
+            os.chdir(_cwd)
 
-            print("[MsstEngine] STEP 3: _load_state_dict...", file=_sys.stderr, flush=True)
-            state_dict = _load_state_dict(model_path, device, model_type)
-            print(f"[MsstEngine] STEP 4: load_state_dict ({len(state_dict)} keys)...", file=_sys.stderr, flush=True)
-            model.load_state_dict(state_dict)
+        _apply_inference_params(config, inference_params)
 
-            if device_ids and len(device_ids) > 1:
-                model = torch.nn.DataParallel(model, device_ids=device_ids)
-            print("[MsstEngine] STEP 5: model.to(device)...", file=_sys.stderr, flush=True)
-            model = model.to(device)
-            model.eval()
+        state_dict = _load_state_dict(model_path, device, model_type)
+        model.load_state_dict(state_dict)
 
-            self._model = model
-            self._config = config
-            self._loaded = True
-            print("[MsstEngine] DONE", file=_sys.stderr, flush=True)
-            return model, config
-        except Exception as e:
-            print(f"[MsstEngine] FAILED at step above: {type(e).__name__}: {e}", file=_sys.stderr, flush=True)
-            import traceback
-            traceback.print_exc(file=_sys.stderr)
-            raise
+        if device_ids and len(device_ids) > 1:
+            model = torch.nn.DataParallel(model, device_ids=device_ids)
+        model = model.to(device)
+        model.eval()
+
+        self._model = model
+        self._config = config
+        self._loaded = True
+        return model, config
 
     # ── 推理 ──────────────────────────────────────────────
 
