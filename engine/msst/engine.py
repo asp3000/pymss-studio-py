@@ -83,11 +83,20 @@ def _load_state_dict(model_path: str, device: str, model_type: str):
         return load_file(model_path, device=device)
     # MSST 引擎直接使用 weights_only=False，因为 MSST 的 ckpt 使用新格式存储，
     # weights_only=True 会拒绝 torch.storage.UntypedStorage (tagged with auto)
-    import sys as _sys
-    print("[MsstEngine] Loading with weights_only=False ...", file=_sys.stderr, flush=True)
-    sd = torch.load(model_path, map_location=device, weights_only=False)
-    print(f"[MsstEngine] OK: {len(sd)} keys", file=_sys.stderr, flush=True)
-    return sd
+    # 先试 weights_only=False，若还失败把完整路径写入 D:/msst_debug.log
+    try:
+        sd = torch.load(model_path, map_location=device, weights_only=False)
+        return sd
+    except Exception as e:
+        import traceback, sys
+        with open(r"D:\msst_debug.log", "a") as _f:
+            _f.write(f"[MsstEngine] _load_state_dict FAIL\n  path={model_path}\n  device={device}\n  type={model_type}\n")
+            _f.write(f"  error={type(e).__name__}: {e}\n")
+            traceback.print_exc(file=_f)
+            _f.write("\n")
+        # 还不行就用 map_location='cpu' 再试一次
+        sd = torch.load(model_path, map_location="cpu", weights_only=False)
+        return sd
 
 
 class MsstEngine:
