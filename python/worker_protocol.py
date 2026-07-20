@@ -84,6 +84,36 @@ def bootstrap_pymss_path() -> None:
 bootstrap_pymss_path()
 
 
+# ── Apply project-local patches ────────────────────────────
+def _apply_tiger_patches() -> None:
+    """Inject TIGER-speech model support into pymms/pymss_core.
+
+    This runs once at worker startup, after ``bootstrap_pymss_path()`` sets up
+    the pymms import path but *before* any worker function imports ``pymss``
+    (all pymms imports in worker modules are lazy — inside function bodies).
+
+    If the ``patches/`` directory is absent (e.g. upstream copy without TIGER),
+    this is a silent no-op.
+    """
+    worker_path = Path(__file__).resolve()
+    project_root = worker_path.parent.parent  # python/ -> project root
+    patches_dir = project_root / "patches"
+    if not patches_dir.is_dir():
+        return
+    root_str = str(project_root)
+    if root_str not in sys.path:
+        sys.path.insert(0, root_str)
+    try:
+        from patches.apply_all import apply_all
+
+        apply_all()
+    except Exception:
+        pass  # patches/ present but broken; degrade gracefully
+
+
+_apply_tiger_patches()
+
+
 def now_iso() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat()
 

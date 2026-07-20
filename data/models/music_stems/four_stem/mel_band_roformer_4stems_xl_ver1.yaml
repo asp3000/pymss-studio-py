@@ -136,7 +136,8 @@ inference:
   batch_size: 1
   dim_t: 256
   normalize: false
-  overlap_size: 33075
+  overlap_size: 441000
+  num_overlap: 3
 loss_multistft:
   fft_sizes:
   - 1024

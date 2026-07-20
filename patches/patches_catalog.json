@@ -1,0 +1,29 @@
+{
+  "models": [
+    {
+      "name": "TIGER-speech.ckpt",
+      "aliases": ["TIGER-speech.ckpt", "TIGER-speech", "TIGER"],
+      "model_type": "tiger",
+      "architecture": "tiger",
+      "supported": true,
+      "unsupported_reason": "",
+      "relpath": "vocal/duet_vocal/TIGER-speech.ckpt",
+      "config_relpath": "vocal/duet_vocal/TIGER-speech.yaml",
+      "auxiliary_relpaths": [
+        "vocal/duet_vocal/TIGER-speech.pymss_state_dict.pt",
+        "vocal/duet_vocal/TIGER-speech.pymss_state_dict.json"
+      ],
+      "size_bytes": 3596290,
+      "sha256": "",
+      "primary_category": "vocal",
+      "primary_category_cn": "人声",
+      "secondary_category": "duet_vocal",
+      "secondary_category_cn": "双人/二重唱分离",
+      "target_stem": "spk1",
+      "config_instruments": "spk1,spk2",
+      "config_target_instrument": "",
+      "classification_confidence": "high",
+      "classification_basis": "TIGER 盲分离多人语音 (JusperLee/TIGER-speech)"
+    }
+  ]
+}

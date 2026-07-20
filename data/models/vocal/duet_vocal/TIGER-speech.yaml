@@ -1,22 +1,17 @@
 training:
   instruments:
-    - spk1
-    - spk2
+  - spk1
+  - spk2
   target_instrument: null
 audio:
-  # TIGER-speech weights are trained at 16 kHz. pymss loads audio at this rate
-  # (see process_folder), so the STFT parameters below are correct.
   sample_rate: 16000
-  # 30 s @ 16 kHz; divisible by win/stride (640/160) for clean frame alignment.
   chunk_size: 480000
 inference:
   batch_size: 1
   use_amp: false
   normalize: false
-  # 75% overlap (equiv. to UI num_overlap=4): overlap_size = chunk_size - chunk_size//4
-  # = 480000 - 120000 = 360000. Baked in so chunked overlap-add defaults to 75%
-  # for both the UI and the Python/CLI API (the UI still overrides via num_overlap).
   overlap_size: 360000
+  num_overlap: 4
 model:
   out_channels: 128
   in_channels: 256

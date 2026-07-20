@@ -4,6 +4,28 @@
 
 ---
 
+## 与上游差异 (vs pymss-desktop)
+
+本项目 fork 自 [pymss-desktop](https://github.com/pymms-studio/pymss-desktop)（原 Vue + Tauri 版本），将前端完全替换为 Python/PySide6，并**新增了 MSST 推理引擎**。
+
+### 为什么要加 MSST 引擎？
+
+原始 `pymss-desktop` 使用 `pymss_core`（pymss 自带分离器）进行所有模型推理。但在实际使用中发现：
+
+1. **`mel_band_roformer` 架构 vocals 输出偏差** — `pymss_core` 的实现在人声通道存在已知的偏差，分离出的 vocal 质量明显偏低。换用 [MSST-WebUI](https://github.com/TRvlvr/application_data) （另一种音源分离 WebUI）的推理代码处理**同一模型权重**即可得到正确结果。
+2. **部分架构 pymss_core 不原生支持** — 如 `segm_models`、`swin_upernet`、`bs_mamba2`、`torchseg`、`scnet_unofficial` 等架构仅在 MSST 中有实现，`pymss_core` 无法加载这些模型。
+3. **模型兼容性** — `pymss_core` 对某些 ckpt 的 `state_dict` 格式限制较严格（要求 `weights_only=True`），而 MSST 引擎的加载路径（`weights_only=False`）能兼容更多社区模型。
+
+### 解决方案
+
+引入 **MSST 引擎适配层**（`engine/`），允许在 UI 中为同一模型一键切换引擎：
+
+- 沿用原 MSST-WebUI 的 `get_model_from_config()` + `demix()` 推理链路
+- 通过 `MsstSeparatorAdapter` 包装器暴露与 `MSSeparator.process_folder()` 兼容的接口
+- 分离界面支持实时引擎切换，无需修改模型文件
+
+---
+
 ## 快速开始
 
 ### 1. 克隆
@@ -95,7 +117,7 @@ python run.py
 
 ## 模型运行引擎
 
-从 v2.2 开始，Pymss Studio 支持**多引擎切换**，解决不同工具对同一模型的输出不一致问题。
+从本版开始（基于 `pymss-desktop` 代码底子），Pymss Studio 在原始单引擎基础之上**新增 MSST 引擎**，实现**多引擎切换**，解决不同工具对同一模型的输出不一致问题。
 
 ### 引擎架构
 
@@ -111,6 +133,8 @@ python run.py
   pymss/utils.py    MSST/utils/utils.py
   pymss_core/       MSST/modules/
 ```
+
+> ⚠️ **MSST 引擎依赖**：`engine/msst/engine.py` 需要从本机 `D:\AI\MSST-WebUI` 目录导入模块（`get_model_from_config` / `demix`）。部署时需确保 MSST-WebUI 位于该路径，或修改 `MSST_ROOT` 常量指向正确位置。
 
 ### 引擎对照表
 
@@ -142,7 +166,7 @@ REGISTRY["my_engine"] = MyEngine
 ARCHITECTURE_ENGINES["bs_roformer"] = ["pymss", "my_engine"]
 ```
 
-新引擎需实现 `load_model()` + `separate()` 接口，也可通过 `MsstSeparatorAdapter` 模式暴露 `process_folder()`。
+新引擎需实现 `load_model()` + `separate()` 接口，也可通过 `MsstSeparatorAdapter` 包装器模式将现有引擎适配为 `process_folder()` 接口（参见 `engine/__init__.py` 中的 `MsstSeparatorAdapter` 实现）。
 
 ---
 

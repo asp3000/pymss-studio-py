@@ -19,3 +19,9 @@ pyyaml>=6.0.1
 torch>=2.7.1
 tqdm>=4.60
 soundfile>=0.12
+
+# ============================================================
+# MSST engine dependency — used when model weights are stored
+# in safetensors format
+# ============================================================
+safetensors>=0.4
