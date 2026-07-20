@@ -1,4 +1,9 @@
 @echo off
+if not defined PSS_HIDDEN (
+    set "PSS_HIDDEN=1"
+    powershell -NoProfile -WindowStyle Hidden -Command "Start-Process -FilePath '%~f0' -WindowStyle Hidden"
+    exit /b
+)
 setlocal EnableExtensions
 set "SCRIPT_DIR=%~dp0"
 cd /d "%SCRIPT_DIR%"
