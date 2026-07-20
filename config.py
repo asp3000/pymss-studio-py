@@ -87,20 +87,27 @@ class AppConfig:
     def resolve_python_exe(self) -> str:
         """Absolute path of the interpreter that runs ``worker.py``.
 
-        优先使用项目的 venv（``venv/Scripts/python.exe``），它是唯一保证
+        使用 ``pythonw.exe``（GUI 子系统）避免 worker 子进程弹出控制台窗口。
+        优先使用项目的 venv（``venv/Scripts/pythonw.exe``），它是唯一保证
         携带了 ``pymss`` + torch + PySide6 的解释器。Windows venv 的
-        python.exe 是 launcher，会 CreateProcess 系统 Python，这是正常行为。
+        pythonw.exe 是 launcher，会 CreateProcess 系统 Python，这是正常行为。
+        配合 worker_bridge.py 的 ``CREATE_NO_WINDOW`` 可完全消除窗口闪烁。
         """
         configured = self.data.get("python_exe")
         resolved = self._resolve_path(self.pkg_dir, configured) if configured else ""
         if resolved and os.path.isfile(resolved):
             return resolved
-        # 1) 项目 venv（最可靠）
+        # 1) 项目 venv（pythonw = GUI 子系统，无控制台窗口）
+        for cand in ("venv/Scripts/pythonw.exe", ".venv/Scripts/pythonw.exe"):
+            venv_py = self.pkg_dir / cand
+            if venv_py.is_file():
+                return str(venv_py.resolve())
+        # 2) 兜底：fallback 到 python.exe
         for cand in ("venv/Scripts/python.exe", ".venv/Scripts/python.exe"):
             venv_py = self.pkg_dir / cand
             if venv_py.is_file():
                 return str(venv_py.resolve())
-        # 2) 兜底：PATH 查找
+        # 3) PATH 查找
         return "python"
 
     @staticmethod
