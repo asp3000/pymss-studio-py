@@ -1,6 +1,56 @@
 {
   "models": [
     {
+      "name": "model_vocals_segm_models_sdr_9.77.ckpt",
+      "aliases": [
+        "model_vocals_segm_models_sdr_9.77.ckpt",
+        "model_vocals_segm_models_sdr_9.77"
+      ],
+      "model_type": "segm_models",
+      "architecture": "segm_models",
+      "supported": true,
+      "unsupported_reason": "",
+      "relpath": "vocal/vocal_extraction/model_vocals_segm_models_sdr_9.77.ckpt",
+      "config_relpath": "vocal/vocal_extraction/model_vocals_segm_models_sdr_9.77.yaml",
+      "auxiliary_relpaths": [],
+      "size_bytes": 863683537,
+      "sha256": "9cb6e969309f96602318fcf5970a6973899db86e5fd9d8f9cf8f15bacdd299bb",
+      "primary_category": "vocal",
+      "primary_category_cn": "人声",
+      "secondary_category": "vocal_extraction",
+      "secondary_category_cn": "人声提取",
+      "target_stem": "vocals/other",
+      "config_instruments": "vocals|other",
+      "config_target_instrument": "",
+      "classification_confidence": "high",
+      "classification_basis": "yaml instruments=vocals,other target_instrument=null"
+    },
+    {
+      "name": "model_swin_upernet_ep_56_sdr_10.6703.ckpt",
+      "aliases": [
+        "model_swin_upernet_ep_56_sdr_10.6703.ckpt",
+        "model_swin_upernet_ep_56_sdr_10.6703"
+      ],
+      "model_type": "swin_upernet",
+      "architecture": "swin_upernet",
+      "supported": true,
+      "unsupported_reason": "",
+      "relpath": "vocal/vocal_extraction/model_swin_upernet_ep_56_sdr_10.6703.ckpt",
+      "config_relpath": "vocal/vocal_extraction/model_swin_upernet_ep_56_sdr_10.6703.yaml",
+      "auxiliary_relpaths": [],
+      "size_bytes": 939903161,
+      "sha256": "d59fa555bfcfc909b1aa9f7f961ad2ab41bfecd9d8d224defdd380cd3225c916",
+      "primary_category": "vocal",
+      "primary_category_cn": "人声",
+      "secondary_category": "vocal_extraction",
+      "secondary_category_cn": "人声提取",
+      "target_stem": "vocals/other",
+      "config_instruments": "vocals|other",
+      "config_target_instrument": "",
+      "classification_confidence": "high",
+      "classification_basis": "yaml instruments=vocals,other target_instrument=null"
+    },
+    {
       "name": "TIGER-speech.ckpt",
       "aliases": ["TIGER-speech.ckpt", "TIGER-speech", "TIGER"],
       "model_type": "tiger",
@@ -24,6 +74,50 @@
       "config_target_instrument": "",
       "classification_confidence": "high",
       "classification_basis": "TIGER 盲分离多人语音 (JusperLee/TIGER-speech)"
+    },
+    {
+      "name": "AudioSR.ckpt",
+      "aliases": ["AudioSR.ckpt", "AudioSR", "audiosr"],
+      "model_type": "audiosr",
+      "architecture": "audiovae",
+      "supported": true,
+      "unsupported_reason": "",
+      "relpath": "cleanup/audio_restoration/AudioSR.yaml",
+      "config_relpath": "cleanup/audio_restoration/AudioSR.yaml",
+      "auxiliary_relpaths": [],
+      "size_bytes": 6170000000,
+      "sha256": "",
+      "primary_category": "cleanup",
+      "primary_category_cn": "音质修复",
+      "secondary_category": "audio_restoration",
+      "secondary_category_cn": "音频恢复/增强",
+      "target_stem": "enhanced",
+      "config_instruments": "enhanced",
+      "config_target_instrument": "",
+      "classification_confidence": "high",
+      "classification_basis": "AudioSR 音频超分辨率重建 (haoheliu/audiosr)"
+    },
+    {
+      "name": "AudioFix.ckpt",
+      "aliases": ["AudioFix.ckpt", "AudioFix", "audiofix", "VoiceFixer", "voicefixer"],
+      "model_type": "voicefixer",
+      "architecture": "audiovae",
+      "supported": true,
+      "unsupported_reason": "",
+      "relpath": "cleanup/audio_restoration/AudioFix.yaml",
+      "config_relpath": "cleanup/audio_restoration/AudioFix.yaml",
+      "auxiliary_relpaths": [],
+      "size_bytes": 620000000,
+      "sha256": "",
+      "primary_category": "cleanup",
+      "primary_category_cn": "音质修复",
+      "secondary_category": "audio_restoration",
+      "secondary_category_cn": "音频恢复/增强",
+      "target_stem": "fixed",
+      "config_instruments": "fixed",
+      "config_target_instrument": "",
+      "classification_confidence": "high",
+      "classification_basis": "VoiceFixer 语音修复 (haoheliu/voicefixer)"
     }
   ]
 }
