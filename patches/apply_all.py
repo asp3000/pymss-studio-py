@@ -44,8 +44,8 @@ def apply_all() -> None:
     # ---- 4. Patch pymms.separator._load_state_dict ----
     _patch_load_state_dict()
 
-    # ---- 5. Merge patches_catalog.json into site-packages catalog ----
-    _merge_catalog_file()
+    # ---- 5. Merge patches_catalog.json into the in-memory catalog loaders ----
+    _merge_catalog_in_memory()
 
 
 # ==========================================================================
@@ -143,78 +143,109 @@ def _patch_load_state_dict() -> None:
     separator._load_state_dict = _patched
 
 
-def _merge_catalog_file() -> None:
-    """Merge ``patches/patches_catalog.json`` into the pip-installed ``model_catalog.json``.
+def _merge_catalog_in_memory() -> None:
+    """Merge ``patches/patches_catalog.json`` into the catalog loaders **in memory**.
 
-    For each entry in the patches catalog:
-    * If an entry with the same ``name`` already exists in the installed catalog,
-      the patches entry **overrides** it (so local customizations take precedence).
+    This NEVER writes to the installed package's ``model_catalog.json`` on disk.
+    Instead it monkey-patches the two catalog loaders that the worker uses:
+
+    * ``pymss.model_registry.load_model_catalog``  (used by pymss internals,
+      ``worker_infer`` / ``worker_download``)
+    * ``worker_models.load_model_catalog``  (used by the GUI / catalog browser)
+
+    Both read the same ``pymss/resources/model_catalog.json`` from site-packages
+    and return ``ModelEntry`` objects (via ``ModelEntry.from_dict``), so we patch
+    each loader to append/override with ``ModelEntry`` instances.
+
+    Why in-memory instead of rewriting the file?
+    Rewriting site-packages mutates an installed (pip-managed) package — it gets
+    clobbered by ``pip install --upgrade pymss`` and fails outright in read-only /
+    immutable installs.  The in-memory approach keeps the project fully
+    self-contained: a fresh ``pip install pymss`` works untouched, and the patches
+    re-apply on every worker startup via :func:`apply_all`.
+
+    For each patches entry:
+    * If an entry with the same ``name`` already exists, the patches entry
+      **overrides** it (local customizations win).
     * Otherwise the entry is appended.
 
-    The merge runs *before* any ``load_model_catalog()`` call in the worker process,
-    so LRU caches always see the augmented catalog on first use.
-
-    If the site-packages file is read-only or the patches file is missing,
-    the operation fails silently — the app continues without TIGER in catalog
-    (the code patches 1–4 still work, but models must be loaded programmatically).
+    LRU caches are cleared after patching so the merged view is seen on first use.
+    Any failure is swallowed — the app still runs without the patched models in
+    the catalog (code patches 1–4 remain functional).
     """
     try:
         import json
-        from importlib import resources as impresources
 
         patches_path = _PATCHES_DIR / "patches_catalog.json"
         if not patches_path.is_file():
-            return  # no patches catalog — nothing to merge
-
+            return
         patches_data = json.loads(patches_path.read_text(encoding="utf-8"))
         patches_entries: list[dict] = patches_data.get("models", [])
         if not patches_entries:
             return
 
-        # Locate the installed catalog via importlib.resources
+        # ---- pymss.model_registry.load_model_catalog (returns ModelEntry list) ----
+        import pymss.model_registry as reg
+
+        _RegEntry = getattr(reg, "ModelEntry", None)
+        _orig_reg_load = reg.load_model_catalog
+
+        def _merged_reg_load():
+            base = _orig_reg_load()
+            models = list(base["models"])
+            existing = {getattr(m, "name", "") for m in models}
+            for pe in patches_entries:
+                pname = pe.get("name", "")
+                if pname in existing:
+                    for i, m in enumerate(models):
+                        if getattr(m, "name", "") == pname:
+                            models[i] = _RegEntry.from_dict(pe) if _RegEntry else pe
+                            break
+                else:
+                    models.append(_RegEntry.from_dict(pe) if _RegEntry else pe)
+            return {**base, "models": models}
+
+        # Clear caches BEFORE swapping the reference
+        for _fn in ("load_model_catalog", "get_model_entry"):
+            _cached = getattr(reg, _fn, None)
+            if _cached is not None:
+                try:
+                    _cached.cache_clear()
+                except AttributeError:
+                    pass
+        reg.load_model_catalog = _merged_reg_load
+
+        # ---- worker_models.load_model_catalog (returns ModelEntry list) ----
         try:
-            cat_file = impresources.files("pymss.resources").joinpath("model_catalog.json")
-        except (ImportError, AttributeError, TypeError):
-            # Fallback for older Python / importlib versions
-            import pymss.resources as res
-            res_dir = Path(res.__file__).parent
-            cat_file = res_dir / "model_catalog.json"
+            import worker_models as wm
+        except ImportError:
+            wm = None
+        if wm is not None:
+            _orig_wm_load = wm.load_model_catalog
 
-        if not cat_file.is_file():
-            return
+            def _merged_wm_load():
+                base = _orig_wm_load()
+                models = list(base["models"])
+                existing = {getattr(m, "name", "") for m in models}
+                for pe in patches_entries:
+                    pname = pe.get("name", "")
+                    if pname in existing:
+                        for i, m in enumerate(models):
+                            if getattr(m, "name", "") == pname:
+                                models[i] = wm.ModelEntry.from_dict(pe)
+                                break
+                    else:
+                        models.append(wm.ModelEntry.from_dict(pe))
+                return {**base, "models": models}
 
-        # Read installed catalog
-        cat_data = json.loads(cat_file.read_text(encoding="utf-8"))
-        models: list[dict] = cat_data.get("models", [])
-
-        # Build a set of existing model names for quick lookup
-        existing_names: set[str] = {m.get("name", "") for m in models}
-
-        # Merge: override existing entries, append new ones
-        changed = False
-        for patch_entry in patches_entries:
-            pname = patch_entry.get("name", "")
-            if pname in existing_names:
-                # Override — find and replace in-place
-                for i, m in enumerate(models):
-                    if m.get("name") == pname:
-                        models[i] = patch_entry
-                        changed = True
-                        break
-            else:
-                # Append new entry
-                models.append(patch_entry)
-                existing_names.add(pname)
-                changed = True
-
-        if not changed:
-            return
-
-        # Write merged catalog back to site-packages
-        cat_data["models"] = models
-        cat_file.write_text(
-            json.dumps(cat_data, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+            try:
+                wm.load_model_catalog.cache_clear()
+            except AttributeError:
+                pass
+            try:
+                wm._model_index.cache_clear()
+            except AttributeError:
+                pass
+            wm.load_model_catalog = _merged_wm_load
     except Exception:
         pass  # fail silently — don't crash the worker
